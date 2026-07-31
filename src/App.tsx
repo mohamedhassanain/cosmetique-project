@@ -20,6 +20,7 @@ const AdminProductForm = lazy(() => import("./pages/admin/AdminProductForm"));
 const AdminCategories = lazy(() => import("./pages/admin/AdminCategories"));
 const AdminOrders = lazy(() => import("./pages/admin/AdminOrders"));
 const AdminSettings = lazy(() => import("./pages/admin/AdminSettings"));
+const AdminPromos = lazy(() => import("./pages/admin/AdminPromos"));
 const Produits = lazy(() => import("./pages/shop/Produits"));
 const ProduitDetail = lazy(() => import("./pages/shop/ProduitDetail"));
 const NotFound = lazy(() => import("./pages/errors/NotFound"));
@@ -107,6 +108,14 @@ const App = () => (
                     element={
                       <RequireAuth>
                         <AdminSettings />
+                      </RequireAuth>
+                    }
+                  />
+                  <Route
+                    path="/admin/publicites"
+                    element={
+                      <RequireAuth>
+                        <AdminPromos />
                       </RequireAuth>
                     }
                   />

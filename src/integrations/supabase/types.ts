@@ -337,6 +337,45 @@ export type Database = {
         }
         Relationships: []
       }
+      promos: {
+        Row: {
+          id: string
+          badge: string | null
+          title: string
+          subtitle: string | null
+          link: string
+          image_url: string | null
+          is_active: boolean
+          sort_order: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          badge?: string | null
+          title: string
+          subtitle?: string | null
+          link?: string
+          image_url?: string | null
+          is_active?: boolean
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          badge?: string | null
+          title?: string
+          subtitle?: string | null
+          link?: string
+          image_url?: string | null
+          is_active?: boolean
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: Record<string, never>
     Functions: Record<string, never>

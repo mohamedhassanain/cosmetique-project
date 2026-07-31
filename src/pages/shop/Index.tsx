@@ -7,7 +7,7 @@ import { useCategories } from '@/hooks/useCategories';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { ProductCard } from '@/components/product/ProductCard';
 import { ProductCarousel } from '@/components/product/ProductCarousel';
-import { HeroPromoCard } from '@/components/shop/HeroPromoCard';
+import { HeroPromoCarousel } from '@/components/shop/HeroPromoCarousel';
 import { QuickViewDialog } from '@/components/product/QuickViewDialog';
 import { ShareDialog } from '@/components/product/ShareDialog';
 import { CartSheet } from '@/components/cart/CartSheet';
@@ -101,8 +101,8 @@ export default function Index() {
               </div>
             </div>
 
-            {/* Carte pub à droite (desktop) */}
-            <HeroPromoCard />
+            {/* Carrousel de publicités à droite (desktop) */}
+            <HeroPromoCarousel />
           </div>
         </div>
         <div className="absolute -top-20 -right-20 w-96 h-96 bg-pink-200/30 rounded-full blur-3xl" />

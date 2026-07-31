@@ -5,7 +5,7 @@ import { useProducts } from '@/hooks/useProducts';
 import { useOrders } from '@/hooks/useOrders';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Package, ShoppingCart, Tags, Settings, Plus, LogOut, Sparkles, TrendingUp, Eye, Flower2 } from 'lucide-react';
+import { Package, ShoppingCart, Tags, Settings, Plus, LogOut, Sparkles, TrendingUp, Eye, Flower2, Megaphone } from 'lucide-react';
 import Logo from '@/components/layout/Logo';
 
 function firstImage(imageUrl: string | null | undefined): string | null {
@@ -74,6 +74,9 @@ export default function AdminDashboard() {
           </Button>
           <Button variant="outline" className="border-pink-200 text-pink-700" asChild>
             <Link to="/admin/parametres"><Settings className="h-4 w-4 mr-2" />Paramètres</Link>
+          </Button>
+          <Button variant="outline" className="border-pink-200 text-pink-700" asChild>
+            <Link to="/admin/publicites"><Megaphone className="h-4 w-4 mr-2" />Publicités</Link>
           </Button>
         </div>
 

@@ -230,6 +230,33 @@ CREATE TABLE IF NOT EXISTS public.site_settings (
 );
 
 -- =====================================================
+-- PROMOS (publicités du hero, plusieurs possibles)
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.promos (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  badge TEXT,
+  title TEXT NOT NULL,
+  subtitle TEXT,
+  link TEXT NOT NULL DEFAULT '/produits?promotions=true',
+  image_url TEXT,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+INSERT INTO public.promos (badge, title, subtitle, link, is_active, sort_order)
+VALUES (
+  'PROMO DU MOMENT',
+  'Jusqu''à -50%',
+  'Sur une sélection de cosmétiques naturels & bio',
+  '/produits?promotions=true',
+  true,
+  0
+)
+ON CONFLICT DO NOTHING;
+
+-- =====================================================
 -- STORAGE BUCKET
 -- =====================================================
 INSERT INTO storage.buckets (id, name, public)
@@ -282,6 +309,9 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_site_settings_updated_at') THEN
     CREATE TRIGGER trg_site_settings_updated_at BEFORE UPDATE ON public.site_settings FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
   END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_promos_updated_at') THEN
+    CREATE TRIGGER trg_promos_updated_at BEFORE UPDATE ON public.promos FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+  END IF;
 END $$;
 
 -- =====================================================
@@ -313,6 +343,7 @@ ALTER TABLE public.product_images ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.contact_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.site_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.promos ENABLE ROW LEVEL SECURITY;
 
 -- =====================================================
 -- RLS POLICIES
@@ -398,6 +429,17 @@ BEGIN
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'site_settings_admin_manage' AND tablename = 'site_settings') THEN
     CREATE POLICY "site_settings_admin_manage" ON public.site_settings FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+  END IF;
+
+  -- promos
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'promos_public_select' AND tablename = 'promos') THEN
+    CREATE POLICY "promos_public_select" ON public.promos FOR SELECT USING (is_active = true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'promos_admin_select_all' AND tablename = 'promos') THEN
+    CREATE POLICY "promos_admin_select_all" ON public.promos FOR SELECT USING (auth.role() = 'authenticated');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'promos_admin_manage' AND tablename = 'promos') THEN
+    CREATE POLICY "promos_admin_manage" ON public.promos FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
   END IF;
 
   -- storage
