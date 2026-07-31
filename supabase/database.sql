@@ -218,6 +218,13 @@ CREATE TABLE IF NOT EXISTS public.site_settings (
   hero_title TEXT,
   hero_subtitle TEXT,
   free_shipping_min NUMERIC,
+  -- Carte promo affichée à droite du hero (gérée depuis l'admin)
+  promo_enabled BOOLEAN NOT NULL DEFAULT true,
+  promo_badge TEXT,
+  promo_title TEXT,
+  promo_subtitle TEXT,
+  promo_link TEXT,
+  promo_image_url TEXT,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -232,8 +239,8 @@ ON CONFLICT DO NOTHING;
 -- =====================================================
 -- SEED DATA
 -- =====================================================
-INSERT INTO public.site_settings (site_name, whatsapp_number, hero_title, hero_subtitle)
-VALUES ('Kissariya Cosmétiques', '+212600000000', 'Votre Beauté, Notre Passion', 'Découvrez notre sélection de cosmétiques naturels et bio au Maroc')
+INSERT INTO public.site_settings (site_name, whatsapp_number, hero_title, hero_subtitle, promo_enabled, promo_badge, promo_title, promo_subtitle, promo_link)
+VALUES ('Kissariya Cosmétiques', '+212600000000', 'Votre Beauté, Notre Passion', 'Découvrez notre sélection de cosmétiques naturels et bio au Maroc', true, 'PROMO DU MOMENT', 'Jusqu''à -50%', 'Sur une sélection de cosmétiques naturels & bio', '/produits?promotions=true')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO public.categories (name, slug, description, sort_order) VALUES
