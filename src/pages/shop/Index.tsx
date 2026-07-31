@@ -151,7 +151,7 @@ export default function Index() {
 
             {/* Promotions */}
             {promotionProducts.length > 0 && (
-              <section className="bg-gradient-to-r from-pink-50 to-rose-50 rounded-3xl p-8 -mx-4">
+              <section className="bg-gradient-to-r from-pink-50 to-rose-50 rounded-3xl p-6 md:p-8">
                 <div className="flex items-center justify-between mb-8">
                   <h2 className="text-2xl font-display font-bold text-pink-900 flex items-center gap-2">
                     <TrendingUp className="h-6 w-6 text-red-400" />
