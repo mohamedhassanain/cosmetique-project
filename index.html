@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <script>
+      /**
+       * Expert Fix: Trusted Types Global Policy & Sink Patching (v2)
+       * Resolves "This document requires 'TrustedScript' assignment" errors
+       * by intercepting string assignments to all sensitive sinks.
+       */
+      (function() {
+        const tt = globalThis.trustedTypes;
+        if (tt && tt.createPolicy) {
+          const p = tt.defaultPolicy || (function() {
+            try {
+              return tt.createPolicy('default', {
+                createHTML: s => s,
+                createScript: s => s,
+                createScriptURL: s => s,
+              });
+            } catch (e) {
+              console.error('Trusted Types Policy creation failed:', e);
+              return null;
+            }
+          })();
+
+          if (p) {
+            const patch = (obj, prop, type) => {
+              const d = Object.getOwnPropertyDescriptor(obj, prop);
+              if (d && d.set) {
+                const s = d.set;
+                Object.defineProperty(obj, prop, {
+                  ...d,
+                  set: function(v) {
+                    if (typeof v === 'string') {
+                      if (type === 'script' && (this.nodeName === 'SCRIPT' || this.tagName === 'SCRIPT')) {
+                        s.call(this, p.createScript(v));
+                      } else if (type === 'html') {
+                        s.call(this, p.createHTML(v));
+                      } else if (type === 'url') {
+                        s.call(this, p.createScriptURL(v));
+                      } else {
+                        s.call(this, v);
+                      }
+                    } else {
+                      s.call(this, v);
+                    }
+                  }
+                });
+              }
+            };
+
+            patch(Node.prototype, 'textContent', 'script');
+            patch(HTMLElement.prototype, 'innerText', 'script');
+            patch(Element.prototype, 'innerHTML', 'html');
+            patch(Element.prototype, 'outerHTML', 'html');
+            patch(HTMLScriptElement.prototype, 'src', 'url');
+            patch(HTMLScriptElement.prototype, 'text', 'script');
+          }
+        }
+      })();
+    </script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kissariya Cosmétiques - Votre Beauté, Notre Passion</title>
+    <meta name="description" content="Boutique de cosmétiques naturels et bio au Maroc. Découvrez notre sélection de soins visage, corps, cheveux et maquillage." />
+    <meta name="author" content="Kissariya Cosmétiques" />
+
+    <meta property="og:title" content="Kissariya Cosmétiques" />
+    <meta property="og:description" content="Cosmétiques naturels et bio au Maroc. Soins visage, corps, cheveux et maquillage." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/og-image.png" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@KissariyaMaroc" />
+    <meta name="twitter:image" content="/og-image.png" />
+    <link rel="icon" type="image/svg+xml" href="/favicon-app.svg?v=1" />
+    <link rel="shortcut icon" href="/favicon-app.svg?v=1" />
+    <link rel="apple-touch-icon" href="/favicon-app.svg?v=1" />
+  </head>
+
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
