@@ -6,6 +6,7 @@ import { useActiveProducts } from '@/hooks/useProducts';
 import { useCategories } from '@/hooks/useCategories';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { ProductCard } from '@/components/product/ProductCard';
+import { ProductCarousel } from '@/components/product/ProductCarousel';
 import { QuickViewDialog } from '@/components/product/QuickViewDialog';
 import { ShareDialog } from '@/components/product/ShareDialog';
 import { CartSheet } from '@/components/cart/CartSheet';
@@ -141,11 +142,7 @@ export default function Index() {
                     </Link>
                   </Button>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                  {featuredProducts.map(product => (
-                    <ProductCard key={product.id} product={product} />
-                  ))}
-                </div>
+                <ProductCarousel products={featuredProducts} />
               </section>
             )}
 
@@ -163,11 +160,7 @@ export default function Index() {
                     </Link>
                   </Button>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                  {promotionProducts.slice(0, 4).map(product => (
-                    <ProductCard key={product.id} product={product} />
-                  ))}
-                </div>
+                <ProductCarousel products={promotionProducts} />
               </section>
             )}
 
@@ -185,11 +178,7 @@ export default function Index() {
                       </Link>
                     </Button>
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                    {catProducts.slice(0, 4).map(product => (
-                      <ProductCard key={product.id} product={product} />
-                    ))}
-                  </div>
+                  <ProductCarousel products={catProducts} />
                 </section>
               );
             })}
