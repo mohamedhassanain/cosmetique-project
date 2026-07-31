@@ -4,25 +4,46 @@
 import { supabase } from '@/integrations/supabase/client';
 import { Promo, PromoInput } from '@/types/site';
 
-export async function fetchActivePromos(): Promise<Promo[]> {
-  const { data, error } = await supabase
-    .from('promos')
-    .select('*')
-    .eq('is_active', true)
-    .order('sort_order', { ascending: true });
+/**
+ * Vrai si l'erreur vient d'une table manquante (404 / relation "promos" absente).
+ * Permet de dégrader proprement quand la migration SQL n'a pas encore été exécutée.
+ */
+function isMissingTableError(error: unknown): boolean {
+  const e = error as { code?: string; message?: string; status?: number };
+  return e?.code === '42P01' || e?.status === 404 ||
+    (typeof e?.message === 'string' && e.message.includes('does not exist'));
+}
 
-  if (error) throw error;
-  return (data || []) as Promo[];
+export async function fetchActivePromos(): Promise<Promo[]> {
+  try {
+    const { data, error } = await supabase
+      .from('promos')
+      .select('*')
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true });
+
+    if (error) throw error;
+    return (data || []) as Promo[];
+  } catch (error) {
+    // Table pas encore créée → aucun carrousel, sans casser l'app.
+    if (isMissingTableError(error)) return [];
+    throw error;
+  }
 }
 
 export async function fetchAllPromos(): Promise<Promo[]> {
-  const { data, error } = await supabase
-    .from('promos')
-    .select('*')
-    .order('sort_order', { ascending: true });
+  try {
+    const { data, error } = await supabase
+      .from('promos')
+      .select('*')
+      .order('sort_order', { ascending: true });
 
-  if (error) throw error;
-  return (data || []) as Promo[];
+    if (error) throw error;
+    return (data || []) as Promo[];
+  } catch (error) {
+    if (isMissingTableError(error)) return [];
+    throw error;
+  }
 }
 
 export async function createPromo(input: PromoInput): Promise<unknown> {
@@ -40,7 +61,7 @@ export async function createPromo(input: PromoInput): Promise<unknown> {
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) throw new Error(buildPromoError(error));
   return data;
 }
 
@@ -61,7 +82,7 @@ export async function updatePromo(id: string, input: Partial<PromoInput>): Promi
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) throw new Error(buildPromoError(error));
   return data;
 }
 
@@ -71,5 +92,13 @@ export async function deletePromo(id: string): Promise<void> {
     .delete()
     .eq('id', id);
 
-  if (error) throw error;
+  if (error) throw new Error(buildPromoError(error));
+}
+
+/** Message d'erreur clair si la table promos n'existe pas encore (migration à exécuter). */
+function buildPromoError(error: unknown): string {
+  if (isMissingTableError(error)) {
+    return "La table 'promos' n'existe pas encore. Exécutez le fichier supabase/database.sql dans le SQL Editor Supabase.";
+  }
+  return (error as Error)?.message || 'Erreur inconnue';
 }

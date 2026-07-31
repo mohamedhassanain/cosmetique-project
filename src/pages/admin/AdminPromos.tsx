@@ -96,17 +96,25 @@ export default function AdminPromos() {
       image_url: form.image_url,
     };
 
-    if (isEditing && form.id) {
-      await updatePromo.mutateAsync({ id: form.id, ...payload });
-    } else {
-      await createPromo.mutateAsync(payload);
+    try {
+      if (isEditing && form.id) {
+        await updatePromo.mutateAsync({ id: form.id, ...payload });
+      } else {
+        await createPromo.mutateAsync(payload);
+      }
+      resetForm();
+    } catch {
+      // Le toast d'erreur est déjà affiché par le hook (usePromos).
     }
-    resetForm();
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm('Supprimer cette publicité ?')) return;
-    await deletePromo.mutateAsync(id);
+    try {
+      await deletePromo.mutateAsync(id);
+    } catch {
+      // Toast déjà affiché par le hook.
+    }
   };
 
   const toggleActive = (p: NonNullable<typeof promos>[number]) => {

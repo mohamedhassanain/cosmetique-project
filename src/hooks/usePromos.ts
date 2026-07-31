@@ -17,6 +17,9 @@ export function useActivePromos() {
     queryKey: PROMOS_KEY,
     queryFn: fetchActivePromos,
     staleTime: 1000 * 60 * 5,
+    // Pas de retry : si la table n'existe pas encore (migration en attente),
+    // on affiche simplement "aucune publicité" au lieu de re-requêter en boucle.
+    retry: false,
   });
 }
 
@@ -25,6 +28,7 @@ export function useAllPromos() {
   return useQuery({
     queryKey: [...PROMOS_KEY, 'all'],
     queryFn: fetchAllPromos,
+    retry: false,
   });
 }
 
