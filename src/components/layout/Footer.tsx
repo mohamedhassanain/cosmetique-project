@@ -19,7 +19,7 @@ function CategoryColumn({ cat }: { cat: { id: string; name: string; slug: string
           {subcategories.map(sub => (
             <li key={sub.id}>
               <Link
-                to={`/produits?categorie=${cat.slug}&sous-categorie=${sub.name.toLowerCase()}`}
+                to={`/produits?categorie=${cat.slug}&sous-categorie=${sub.slug ?? sub.name.toLowerCase()}`}
                 className="text-gray-500 hover:text-pink-600 transition-colors"
               >
                 {sub.name}

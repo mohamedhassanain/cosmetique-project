@@ -12,16 +12,24 @@ import {
   ProductFilters,
 } from '@/services/product.service';
 import { QUERY_KEYS, PRODUCT_INVALIDATION_KEYS } from '@/constants/query-keys';
+import { Product } from '@/types/product';
 
 // Ré-export pour compatibilité avec les imports existants
 export type { ProductFormData, ProductFilters } from '@/services/product.service';
 
-type QueryKey = string[] | readonly string[];
+type QueryClientType = ReturnType<typeof useQueryClient>;
 
-async function invalidateProductQueries(queryClient: ReturnType<typeof useQueryClient>) {
+async function invalidateProductQueries(queryClient: QueryClientType) {
   await Promise.all(PRODUCT_INVALIDATION_KEYS.map(({ queryKey }) =>
-    queryClient.invalidateQueries({ queryKey: queryKey as unknown as QueryKey })
+    queryClient.invalidateQueries({ queryKey: queryKey as readonly string[] })
   ));
+}
+
+/** Met à jour immédiatement le cache ['products'] avec la valeur optimiste. */
+function optimisticSetProducts(queryClient: QueryClientType, updater: (products: Product[]) => Product[]) {
+  queryClient.setQueryData<Product[]>(QUERY_KEYS.products as readonly string[], (old) =>
+    updater(old ?? [])
+  );
 }
 
 // ==============================
@@ -89,48 +97,127 @@ export function useProductBySlug(slug: string | undefined) {
 }
 
 // ==============================
-// HOOKS DE MUTATION
+// HOOKS DE MUTATION (optimistic)
 // ==============================
 
 export function useCreateProduct() {
   const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: apiCreateProduct,
-    onSuccess: () => {
-      void invalidateProductQueries(queryClient);
-      toast.success('Produit ajouté avec succès !');
+    onMutate: async (formData: ProductFormData) => {
+      // Annule toutes les requêtes en vol pour éviter d'écraser l'optimistic update
+      await queryClient.cancelQueries({ queryKey: QUERY_KEYS.products });
+
+      const previousProducts = queryClient.getQueryData<Product[]>(QUERY_KEYS.products as readonly string[]);
+
+      const optimisticProduct = {
+        id: `temp-${Date.now()}`,
+        name: formData.name,
+        slug: formData.slug,
+        description: formData.description ?? null,
+        price: formData.price,
+        original_price: formData.original_price ?? null,
+        is_promotion: formData.is_promotion ?? false,
+        is_featured: formData.is_featured ?? false,
+        is_active: formData.is_active ?? true,
+        image_url: formData.image_url ?? null,
+        category_id: formData.category_id ?? null,
+        subcategory_id: formData.subcategory_id ?? null,
+        stock_quantity: formData.stock_quantity ?? 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      } as Product;
+
+      optimisticSetProducts(queryClient, (products) => [optimisticProduct, ...products]);
+
+      // Contexte pour le rollback si la mutation échoue
+      return { previousProducts };
     },
-    onError: (error: Error) => {
+    onError: (error: Error, _variables, context) => {
+      if (context?.previousProducts) {
+        queryClient.setQueryData(QUERY_KEYS.products as readonly string[], context.previousProducts);
+      }
       toast.error(`Erreur: ${error.message}`);
+    },
+    onSettled: () => {
+      void invalidateProductQueries(queryClient);
+    },
+    onSuccess: () => {
+      toast.success('Produit ajouté avec succès !');
     },
   });
 }
 
 export function useUpdateProduct() {
   const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: ({ id, ...formData }: Partial<ProductFormData> & { id: string }) =>
       apiUpdateProduct(id, formData),
-    onSuccess: () => {
-      void invalidateProductQueries(queryClient);
-      toast.success('Produit mis à jour !');
+    onMutate: async ({ id, ...formData }: Partial<ProductFormData> & { id: string }) => {
+      await queryClient.cancelQueries({ queryKey: QUERY_KEYS.products });
+
+      const previousProducts = queryClient.getQueryData<Product[]>(QUERY_KEYS.products as readonly string[]);
+
+      optimisticSetProducts(queryClient, (products) =>
+        products.map((p) => {
+          if (p.id !== id) return p;
+          return {
+            ...p,
+            ...(formData.name !== undefined && { name: formData.name }),
+            ...(formData.slug !== undefined && { slug: formData.slug }),
+            ...(formData.price !== undefined && { price: formData.price }),
+            ...(formData.image_url !== undefined && { image_url: formData.image_url ?? null }),
+            ...(formData.is_active !== undefined && { is_active: formData.is_active }),
+            ...(formData.is_featured !== undefined && { is_featured: formData.is_featured }),
+            ...(formData.is_promotion !== undefined && { is_promotion: formData.is_promotion }),
+          };
+        })
+      );
+
+      return { previousProducts };
     },
-    onError: (error: Error) => {
+    onError: (error: Error, _variables, context) => {
+      if (context?.previousProducts) {
+        queryClient.setQueryData(QUERY_KEYS.products as readonly string[], context.previousProducts);
+      }
       toast.error(`Erreur: ${error.message}`);
+    },
+    onSettled: () => {
+      void invalidateProductQueries(queryClient);
+    },
+    onSuccess: () => {
+      toast.success('Produit mis à jour !');
     },
   });
 }
 
 export function useDeleteProduct() {
   const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: apiDeleteProduct,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.products });
-      toast.success('Produit supprimé !');
+    onMutate: async (id: string) => {
+      await queryClient.cancelQueries({ queryKey: QUERY_KEYS.products });
+
+      const previousProducts = queryClient.getQueryData<Product[]>(QUERY_KEYS.products as readonly string[]);
+
+      optimisticSetProducts(queryClient, (products) => products.filter((p) => p.id !== id));
+
+      return { previousProducts };
     },
-    onError: (error: Error) => {
+    onError: (error: Error, _variables, context) => {
+      if (context?.previousProducts) {
+        queryClient.setQueryData(QUERY_KEYS.products as readonly string[], context.previousProducts);
+      }
       toast.error(`Erreur: ${error.message}`);
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.products });
+    },
+    onSuccess: () => {
+      toast.success('Produit supprimé !');
     },
   });
 }

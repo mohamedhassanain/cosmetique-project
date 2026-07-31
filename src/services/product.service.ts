@@ -4,6 +4,7 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 import { Product, ProductImage } from '@/types/product';
+import { slugify } from '@/lib/utils';
 
 export interface ProductFormData {
   name: string;
@@ -112,13 +113,15 @@ export async function fetchPublicProducts(filters: ProductFilters = {}): Promise
 
   let subcategoryId: string | null = null;
   if (subcategory_slug && categoryId) {
+    // Résolution fiable par slug exact (accents/casse normalisés), sans ILIKE.
+    // Chaînes séparées pour éviter les types trop profonds du builder Supabase.
     const { data: sub } = await supabase
       .from('subcategories')
       .select('id')
       .eq('category_id', categoryId)
-      .ilike('name', subcategory_slug.replace(/-/g, ' '))
+      .eq('slug', slugify(subcategory_slug))
       .maybeSingle();
-    subcategoryId = sub?.id || null;
+    subcategoryId = sub?.id ?? null;
   }
 
   let query = supabase

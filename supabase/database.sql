@@ -7,6 +7,8 @@
 -- EXTENSION
 -- =====================================================
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+-- Nécessaire pour normaliser les accents lors du backfill des slugs de sous-catégories.
+CREATE EXTENSION IF NOT EXISTS "unaccent";
 
 -- =====================================================
 -- PROFILES (admin uniquement)
@@ -16,9 +18,36 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
   full_name TEXT,
   phone TEXT,
+  -- Rôle de l'utilisateur : 'admin' par défaut (pas de signup public actuellement).
+  -- Préparation RBAC : cette colonne permettra de restreindre les policies à la place de auth.role().
+  role TEXT NOT NULL DEFAULT 'admin' CHECK (role IN ('admin', 'staff')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- ═══════════════════════════════════════════════════════════════
+-- NOTE DE MIGRATION RBAC (à exécuter manuellement plus tard) :
+--
+-- Le jour où vous voulez distinguer les rôles dans les policies,
+-- remplacez `auth.role() = 'authenticated'` par un check sur la
+-- ligne profiles. Exemple pour orders (SELECT/UPDATE/DELETE réservés
+-- aux vrais admins) :
+--
+--   CREATE OR REPLACE FUNCTION public.is_admin()
+--   RETURNS BOOLEAN AS $$
+--   SELECT EXISTS (
+--     SELECT 1 FROM public.profiles
+--     WHERE user_id = auth.uid() AND role = 'admin'
+--   );
+--   $$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public;
+--
+--   DROP POLICY IF EXISTS "orders_admin_select" ON public.orders;
+--   CREATE POLICY "orders_admin_select" ON public.orders
+--     FOR SELECT USING (public.is_admin());
+--
+-- Puis répéter pour chaque policy `*_admin_*`. Le trigger
+-- handle_new_user() insère déjà le rôle par défaut ('admin').
+-- ═══════════════════════════════════════════════════════════════
 
 -- =====================================================
 -- CATEGORIES
@@ -41,10 +70,35 @@ CREATE TABLE IF NOT EXISTS public.subcategories (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   category_id UUID NOT NULL REFERENCES public.categories(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
+  -- Slug stable pour les URLs et le filtrage fiable (accents/casse).
+  -- Unique par catégorie : le même nom peut exister dans deux catégories.
+  slug TEXT,
   sort_order INTEGER DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
+
+-- ⚠️ MIGRATION DES DONNÉES EXISTANTES (slug) :
+-- Génère les slugs des sous-catégories déjà en base (une seule fois).
+-- Utilise lower() + unidecode() si l'extension est dispo, sinon simple lower().
+UPDATE public.subcategories
+SET slug = lower(regexp_replace(
+  regexp_replace(unaccent(name), '[^a-zA-Z0-9]+', '-', 'g'),
+  '(^-)|(-$)', '', 'g'
+))
+WHERE slug IS NULL
+  AND EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'unaccent');
+
+UPDATE public.subcategories
+SET slug = lower(regexp_replace(
+  regexp_replace(name, '[^a-zA-Z0-9]+', '-', 'g'),
+  '(^-)|(-$)', '', 'g'
+))
+WHERE slug IS NULL;
+
+-- Contrainte d'unicité par catégorie, une fois les données backfillées.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_subcategories_category_slug
+  ON public.subcategories (category_id, slug);
 
 -- =====================================================
 -- PRODUCTS
@@ -305,8 +359,22 @@ BEGIN
   END IF;
 
   -- orders
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'orders_admin_manage' AND tablename = 'orders') THEN
-    CREATE POLICY "orders_admin_manage" ON public.orders FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+  -- ⚠️ INSERT est OUVERT au public : les commandes WhatsApp sont créées par des
+  --    visiteurs non connectés (services/whatsapp.service.ts → createOrder()).
+  --    SELECT / UPDATE / DELETE restent réservés aux utilisateurs authentifiés.
+  -- Migration : l'ancienne policy globale FOR ALL est retirée si elle existe.
+  EXECUTE 'DROP POLICY IF EXISTS "orders_admin_manage" ON public.orders';
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'orders_insert_public' AND tablename = 'orders') THEN
+    CREATE POLICY "orders_insert_public" ON public.orders FOR INSERT WITH CHECK (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'orders_admin_select' AND tablename = 'orders') THEN
+    CREATE POLICY "orders_admin_select" ON public.orders FOR SELECT USING (auth.role() = 'authenticated');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'orders_admin_update' AND tablename = 'orders') THEN
+    CREATE POLICY "orders_admin_update" ON public.orders FOR UPDATE USING (auth.role() = 'authenticated');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'orders_admin_delete' AND tablename = 'orders') THEN
+    CREATE POLICY "orders_admin_delete" ON public.orders FOR DELETE USING (auth.role() = 'authenticated');
   END IF;
 
   -- contact_messages

@@ -3,6 +3,7 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 import { Category, Subcategory } from '@/types/product';
+import { slugify } from '@/lib/utils';
 
 export async function fetchCategories(): Promise<Category[]> {
   const { data, error } = await supabase
@@ -72,9 +73,10 @@ export async function fetchSubcategories(categoryId: string): Promise<Subcategor
 }
 
 export async function createSubcategory(categoryId: string, name: string): Promise<unknown> {
+  // Le slug est généré automatiquement depuis le nom (ex: "Crème Visage" → "creme-visage").
   const { data, error } = await supabase
     .from('subcategories')
-    .insert([{ category_id: categoryId, name }])
+    .insert([{ category_id: categoryId, name, slug: slugify(name) }])
     .select()
     .single();
 
@@ -85,7 +87,7 @@ export async function createSubcategory(categoryId: string, name: string): Promi
 export async function updateSubcategory(id: string, name: string): Promise<unknown> {
   const { data, error } = await supabase
     .from('subcategories')
-    .update({ name })
+    .update({ name, slug: slugify(name) })
     .eq('id', id)
     .select()
     .single();

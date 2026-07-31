@@ -17,3 +17,18 @@ export function formatWhatsAppNumber(number: string) {
   }
   return cleaned;
 }
+
+/**
+ * Génère un slug lisible depuis un texte : minuscules, sans accents,
+ * espaces et caractères spéciaux remplacés par des tirets.
+ * Exemple : "Crème Visage" → "creme-visage"
+ */
+export function slugify(value: string): string {
+  return value
+    .normalize('NFD')
+    .replaceAll(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replaceAll(/[^a-z0-9]+/g, '-')
+    .replaceAll(/(^-)|(-$)/g, '');
+}

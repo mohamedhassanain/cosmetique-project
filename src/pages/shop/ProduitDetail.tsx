@@ -12,6 +12,7 @@ import { useProductActions } from '@/hooks/useProductActions';
 import { useCart } from '@/hooks/cart-utils';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { useProductBySlug } from '@/hooks/useProducts';
+import { useSeo } from '@/hooks/useSeo';
 import { Product } from '@/types/product';
 import { ShoppingCart, MessageCircle, Share2, ChevronLeft, ChevronRight, Sparkles, Leaf, Flower2, Package, Play, MapPin, Navigation, X } from 'lucide-react';
 
@@ -50,6 +51,13 @@ export default function ProduitDetail() {
   }, [product, parseImages]);
 
   const currentMedia = mediaItems[mediaIndex];
+
+  // SEO : title, description et og:image dynamiques selon le produit chargé.
+  useSeo({
+    title: product ? `${product.name} — ${settings?.site_name || 'Kissariya Cosmétiques'}` : undefined,
+    description: product?.description || undefined,
+    image: product ? parseImages(product.image_url)[0] : undefined,
+  });
 
   const handleShare = () => {
     if (!product) return;

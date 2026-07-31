@@ -9,7 +9,10 @@ function parseRateLimitRetryAfter(error: unknown): number | null {
   const status = err.status;
   const message = err.message?.toLowerCase() ?? '';
   if (status === 429 || message.includes('rate limit') || message.includes('too many')) {
-    const match = message.match(/retry after (\d+)/i);
+    // Formats réels observés côté GoTrue (Supabase Auth) :
+    // - "Request rate limit reached, please retry after 30 seconds"
+    // - "Too many requests, please try again in 60 seconds"
+    const match = message.match(/(?:retry after|in) (\d+)/i);
     return match ? Number(match[1]) : BASE_DELAY_SECONDS;
   }
   return null;

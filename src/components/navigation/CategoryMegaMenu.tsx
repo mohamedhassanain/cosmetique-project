@@ -131,9 +131,9 @@ function CategoryPanelContent({
   rightSubs,
 }: {
   category: { id: string; name: string; slug: string };
-  subcategories: { id: string; name: string }[];
-  leftSubs: { id: string; name: string }[];
-  rightSubs: { id: string; name: string }[];
+  subcategories: { id: string; name: string; slug: string | null }[];
+  leftSubs: { id: string; name: string; slug: string | null }[];
+  rightSubs: { id: string; name: string; slug: string | null }[];
 }) {
   return (
     <div className="flex min-h-[280px]">
@@ -192,7 +192,7 @@ function CategoryPanelContent({
                 {leftSubs.map((sub) => (
                   <li key={sub.id}>
                     <Link
-                      to={`/produits?categorie=${category.slug}&sous-categorie=${sub.name.toLowerCase()}`}
+                      to={`/produits?categorie=${category.slug}&sous-categorie=${sub.slug ?? sub.name.toLowerCase()}`}
                       className="text-gray-600 hover:text-pink-600 text-sm py-1.5 block"
                     >
                       {sub.name}
@@ -210,7 +210,7 @@ function CategoryPanelContent({
                 {rightSubs.map((sub) => (
                   <li key={sub.id}>
                     <Link
-                      to={`/produits?categorie=${category.slug}&sous-categorie=${sub.name.toLowerCase()}`}
+                      to={`/produits?categorie=${category.slug}&sous-categorie=${sub.slug ?? sub.name.toLowerCase()}`}
                       className="text-gray-600 hover:text-pink-600 text-sm py-1.5 block"
                     >
                       {sub.name}
@@ -253,9 +253,9 @@ function MobileDrawer({
   onNavigate,
 }: {
   category: { id: string; name: string; slug: string };
-  subcategories: { id: string; name: string }[];
-  leftSubs: { id: string; name: string }[];
-  rightSubs: { id: string; name: string }[];
+  subcategories: { id: string; name: string; slug: string | null }[];
+  leftSubs: { id: string; name: string; slug: string | null }[];
+  rightSubs: { id: string; name: string; slug: string | null }[];
   onClose: () => void;
   onNavigate: () => void;
 }) {
@@ -306,7 +306,7 @@ function MobileDrawer({
                 {leftSubs.map((sub) => (
                   <li key={sub.id}>
                     <Link
-                      to={`/produits?categorie=${category.slug}&sous-categorie=${sub.name.toLowerCase()}`}
+                      to={`/produits?categorie=${category.slug}&sous-categorie=${sub.slug ?? sub.name.toLowerCase()}`}
                       onClick={onNavigate}
                       className="flex items-center justify-between py-2 text-sm text-gray-600 hover:text-orange-500"
                     >
@@ -329,7 +329,7 @@ function MobileDrawer({
                 {rightSubs.map((sub) => (
                   <li key={sub.id}>
                     <Link
-                      to={`/produits?categorie=${category.slug}&sous-categorie=${sub.name.toLowerCase()}`}
+                      to={`/produits?categorie=${category.slug}&sous-categorie=${sub.slug ?? sub.name.toLowerCase()}`}
                       onClick={onNavigate}
                       className="flex items-center justify-between py-2 text-sm text-gray-600 hover:text-orange-500"
                     >

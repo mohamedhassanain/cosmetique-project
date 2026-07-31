@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryProvider } from "@/providers/query-provider";
 import { AuthProvider } from "@/providers/auth-provider";
 import { RequireAuth } from "@/components/shared/RequireAuth";
+import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { CartProvider } from "@/providers/cart-provider";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { FaviconUpdater } from "@/components/shared/FaviconUpdater";
@@ -41,8 +42,9 @@ const App = () => (
           <FaviconUpdater />
           <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
             <div className="min-h-screen pb-16 md:pb-0">
-              <Suspense fallback={<PageLoader />}>
-                <Routes>
+              <ErrorBoundary>
+                <Suspense fallback={<PageLoader />}>
+                  <Routes>
                   {/* Pages publiques */}
                   <Route path="/" element={<Index />} />
                   <Route path="/produits" element={<Produits />} />
@@ -109,9 +111,10 @@ const App = () => (
                     }
                   />
 
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </Suspense>
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </Suspense>
+              </ErrorBoundary>
               <BottomNav />
             </div>
           </BrowserRouter>
