@@ -1,10 +1,14 @@
 -- =====================================================
 -- KISSARIYA COSMÉTIQUES — Schéma complet
--- Exécuter ce fichier UNE FOIS dans l'éditeur SQL Supabase
+-- Exécuter ce fichier dans l'éditeur SQL Supabase.
+-- TOUT le fichier est idempotent (rejouable sans erreur) :
+--   * tables : CREATE TABLE IF NOT EXISTS
+--   * triggers / policies : DROP IF EXISTS + CREATE
+--   * pas de blocs DO $$ (évite les erreurs "unterminated dollar-quoted string")
 -- =====================================================
 
 -- =====================================================
--- EXTENSION
+-- EXTENSIONS
 -- =====================================================
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- Nécessaire pour normaliser les accents lors du backfill des slugs de sous-catégories.
@@ -26,7 +30,8 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 );
 
 -- ═══════════════════════════════════════════════════════════════
--- NOTE DE MIGRATION RBAC (à exécuter manuellement plus tard) :
+-- NOTE DE MIGRATION RBAC (à faire plus tard, volontairement pas
+-- appliquée ici pour ne rien casser) :
 --
 -- Le jour où vous voulez distinguer les rôles dans les policies,
 -- remplacez `auth.role() = 'authenticated'` par un check sur la
@@ -80,7 +85,6 @@ CREATE TABLE IF NOT EXISTS public.subcategories (
 
 -- ⚠️ MIGRATION DES DONNÉES EXISTANTES (slug) :
 -- Génère les slugs des sous-catégories déjà en base (une seule fois).
--- Utilise lower() + unidecode() si l'extension est dispo, sinon simple lower().
 UPDATE public.subcategories
 SET slug = lower(regexp_replace(
   regexp_replace(unaccent(name), '[^a-zA-Z0-9]+', '-', 'g'),
@@ -218,7 +222,7 @@ CREATE TABLE IF NOT EXISTS public.site_settings (
   hero_title TEXT,
   hero_subtitle TEXT,
   free_shipping_min NUMERIC,
-  -- Carte promo affichée à droite du hero (gérée depuis l'admin)
+  -- Champs de l'ancienne carte promo unique (conservés pour compatibilité).
   promo_enabled BOOLEAN NOT NULL DEFAULT true,
   promo_badge TEXT,
   promo_title TEXT,
@@ -245,17 +249,6 @@ CREATE TABLE IF NOT EXISTS public.promos (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
-INSERT INTO public.promos (badge, title, subtitle, link, is_active, sort_order)
-VALUES (
-  'PROMO DU MOMENT',
-  'Jusqu''à -50%',
-  'Sur une sélection de cosmétiques naturels & bio',
-  '/produits?promotions=true',
-  true,
-  0
-)
-ON CONFLICT DO NOTHING;
-
 -- =====================================================
 -- STORAGE BUCKET
 -- =====================================================
@@ -281,8 +274,19 @@ INSERT INTO public.categories (name, slug, description, sort_order) VALUES
 ('Accessoires', 'accessoires-beaute', 'Pinceaux, éponges et outils de beauté', 8)
 ON CONFLICT DO NOTHING;
 
+INSERT INTO public.promos (badge, title, subtitle, link, is_active, sort_order)
+VALUES (
+  'PROMO DU MOMENT',
+  'Jusqu''à -50%',
+  'Sur une sélection de cosmétiques naturels & bio',
+  '/produits?promotions=true',
+  true,
+  0
+)
+ON CONFLICT DO NOTHING;
+
 -- =====================================================
--- UPDATED_AT TRIGGER
+-- FONCTIONS
 -- =====================================================
 CREATE OR REPLACE FUNCTION public.update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -292,31 +296,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SET search_path = public;
 
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_profiles_updated_at') THEN
-    CREATE TRIGGER trg_profiles_updated_at BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_categories_updated_at') THEN
-    CREATE TRIGGER trg_categories_updated_at BEFORE UPDATE ON public.categories FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_subcategories_updated_at') THEN
-    CREATE TRIGGER trg_subcategories_updated_at BEFORE UPDATE ON public.subcategories FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_products_updated_at') THEN
-    CREATE TRIGGER trg_products_updated_at BEFORE UPDATE ON public.products FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_site_settings_updated_at') THEN
-    CREATE TRIGGER trg_site_settings_updated_at BEFORE UPDATE ON public.site_settings FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_promos_updated_at') THEN
-    CREATE TRIGGER trg_promos_updated_at BEFORE UPDATE ON public.promos FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-  END IF;
-END $$;
-
--- =====================================================
--- AUTO CREATE PROFILE ON SIGNUP
--- =====================================================
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -325,12 +304,29 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'on_auth_user_created') THEN
-    CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
-  END IF;
-END $$;
+-- =====================================================
+-- UPDATED_AT TRIGGERS (idempotent : DROP + CREATE)
+-- =====================================================
+DROP TRIGGER IF EXISTS trg_profiles_updated_at ON public.profiles;
+CREATE TRIGGER trg_profiles_updated_at BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+DROP TRIGGER IF EXISTS trg_categories_updated_at ON public.categories;
+CREATE TRIGGER trg_categories_updated_at BEFORE UPDATE ON public.categories FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+DROP TRIGGER IF EXISTS trg_subcategories_updated_at ON public.subcategories;
+CREATE TRIGGER trg_subcategories_updated_at BEFORE UPDATE ON public.subcategories FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+DROP TRIGGER IF EXISTS trg_products_updated_at ON public.products;
+CREATE TRIGGER trg_products_updated_at BEFORE UPDATE ON public.products FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+DROP TRIGGER IF EXISTS trg_site_settings_updated_at ON public.site_settings;
+CREATE TRIGGER trg_site_settings_updated_at BEFORE UPDATE ON public.site_settings FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+DROP TRIGGER IF EXISTS trg_promos_updated_at ON public.promos;
+CREATE TRIGGER trg_promos_updated_at BEFORE UPDATE ON public.promos FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
 -- =====================================================
 -- ROW LEVEL SECURITY
@@ -346,110 +342,98 @@ ALTER TABLE public.site_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.promos ENABLE ROW LEVEL SECURITY;
 
 -- =====================================================
--- RLS POLICIES
+-- RLS POLICIES (idempotent : DROP + CREATE)
 -- =====================================================
-DO $$
-BEGIN
-  -- profiles
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'profiles_select_own' AND tablename = 'profiles') THEN
-    CREATE POLICY "profiles_select_own" ON public.profiles FOR SELECT USING (auth.uid() = user_id);
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'profiles_insert_own' AND tablename = 'profiles') THEN
-    CREATE POLICY "profiles_insert_own" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = user_id);
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'profiles_update_own' AND tablename = 'profiles') THEN
-    CREATE POLICY "profiles_update_own" ON public.profiles FOR UPDATE USING (auth.uid() = user_id);
-  END IF;
+-- profiles
+DROP POLICY IF EXISTS "profiles_select_own" ON public.profiles;
+CREATE POLICY "profiles_select_own" ON public.profiles FOR SELECT USING (auth.uid() = user_id);
 
-  -- categories
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'categories_public_select' AND tablename = 'categories') THEN
-    CREATE POLICY "categories_public_select" ON public.categories FOR SELECT USING (true);
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'categories_admin_manage' AND tablename = 'categories') THEN
-    CREATE POLICY "categories_admin_manage" ON public.categories FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
-  END IF;
+DROP POLICY IF EXISTS "profiles_insert_own" ON public.profiles;
+CREATE POLICY "profiles_insert_own" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = user_id);
 
-  -- subcategories
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'subcategories_public_select' AND tablename = 'subcategories') THEN
-    CREATE POLICY "subcategories_public_select" ON public.subcategories FOR SELECT USING (true);
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'subcategories_admin_manage' AND tablename = 'subcategories') THEN
-    CREATE POLICY "subcategories_admin_manage" ON public.subcategories FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
-  END IF;
+DROP POLICY IF EXISTS "profiles_update_own" ON public.profiles;
+CREATE POLICY "profiles_update_own" ON public.profiles FOR UPDATE USING (auth.uid() = user_id);
 
-  -- products
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'products_public_select' AND tablename = 'products') THEN
-    CREATE POLICY "products_public_select" ON public.products FOR SELECT USING (is_active = true);
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'products_admin_select_all' AND tablename = 'products') THEN
-    CREATE POLICY "products_admin_select_all" ON public.products FOR SELECT USING (auth.role() = 'authenticated');
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'products_admin_manage' AND tablename = 'products') THEN
-    CREATE POLICY "products_admin_manage" ON public.products FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
-  END IF;
+-- categories
+DROP POLICY IF EXISTS "categories_public_select" ON public.categories;
+CREATE POLICY "categories_public_select" ON public.categories FOR SELECT USING (true);
 
-  -- product_images
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'product_images_public_select' AND tablename = 'product_images') THEN
-    CREATE POLICY "product_images_public_select" ON public.product_images FOR SELECT USING (true);
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'product_images_admin_manage' AND tablename = 'product_images') THEN
-    CREATE POLICY "product_images_admin_manage" ON public.product_images FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
-  END IF;
+DROP POLICY IF EXISTS "categories_admin_manage" ON public.categories;
+CREATE POLICY "categories_admin_manage" ON public.categories FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
 
-  -- orders
-  -- ⚠️ INSERT est OUVERT au public : les commandes WhatsApp sont créées par des
-  --    visiteurs non connectés (services/whatsapp.service.ts → createOrder()).
-  --    SELECT / UPDATE / DELETE restent réservés aux utilisateurs authentifiés.
-  -- Migration : l'ancienne policy globale FOR ALL est retirée si elle existe.
-  EXECUTE 'DROP POLICY IF EXISTS "orders_admin_manage" ON public.orders';
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'orders_insert_public' AND tablename = 'orders') THEN
-    CREATE POLICY "orders_insert_public" ON public.orders FOR INSERT WITH CHECK (true);
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'orders_admin_select' AND tablename = 'orders') THEN
-    CREATE POLICY "orders_admin_select" ON public.orders FOR SELECT USING (auth.role() = 'authenticated');
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'orders_admin_update' AND tablename = 'orders') THEN
-    CREATE POLICY "orders_admin_update" ON public.orders FOR UPDATE USING (auth.role() = 'authenticated');
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'orders_admin_delete' AND tablename = 'orders') THEN
-    CREATE POLICY "orders_admin_delete" ON public.orders FOR DELETE USING (auth.role() = 'authenticated');
-  END IF;
+-- subcategories
+DROP POLICY IF EXISTS "subcategories_public_select" ON public.subcategories;
+CREATE POLICY "subcategories_public_select" ON public.subcategories FOR SELECT USING (true);
 
-  -- contact_messages
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'contact_messages_insert_public' AND tablename = 'contact_messages') THEN
-    CREATE POLICY "contact_messages_insert_public" ON public.contact_messages FOR INSERT WITH CHECK (true);
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'contact_messages_admin_select' AND tablename = 'contact_messages') THEN
-    CREATE POLICY "contact_messages_admin_select" ON public.contact_messages FOR SELECT USING (auth.role() = 'authenticated');
-  END IF;
+DROP POLICY IF EXISTS "subcategories_admin_manage" ON public.subcategories;
+CREATE POLICY "subcategories_admin_manage" ON public.subcategories FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
 
-  -- site_settings
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'site_settings_public_select' AND tablename = 'site_settings') THEN
-    CREATE POLICY "site_settings_public_select" ON public.site_settings FOR SELECT USING (true);
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'site_settings_admin_manage' AND tablename = 'site_settings') THEN
-    CREATE POLICY "site_settings_admin_manage" ON public.site_settings FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
-  END IF;
+-- products
+DROP POLICY IF EXISTS "products_public_select" ON public.products;
+CREATE POLICY "products_public_select" ON public.products FOR SELECT USING (is_active = true);
 
-  -- promos
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'promos_public_select' AND tablename = 'promos') THEN
-    CREATE POLICY "promos_public_select" ON public.promos FOR SELECT USING (is_active = true);
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'promos_admin_select_all' AND tablename = 'promos') THEN
-    CREATE POLICY "promos_admin_select_all" ON public.promos FOR SELECT USING (auth.role() = 'authenticated');
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'promos_admin_manage' AND tablename = 'promos') THEN
-    CREATE POLICY "promos_admin_manage" ON public.promos FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
-  END IF;
+DROP POLICY IF EXISTS "products_admin_select_all" ON public.products;
+CREATE POLICY "products_admin_select_all" ON public.products FOR SELECT USING (auth.role() = 'authenticated');
 
-  -- storage
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'images_public_select' AND tablename = 'objects' AND schemaname = 'storage') THEN
-    CREATE POLICY "images_public_select" ON storage.objects FOR SELECT USING (bucket_id = 'cosmetics-images');
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'images_authenticated_manage' AND tablename = 'objects' AND schemaname = 'storage') THEN
-    CREATE POLICY "images_authenticated_manage" ON storage.objects FOR ALL TO authenticated USING (bucket_id = 'cosmetics-images') WITH CHECK (bucket_id = 'cosmetics-images');
-  END IF;
-END $$;
+DROP POLICY IF EXISTS "products_admin_manage" ON public.products;
+CREATE POLICY "products_admin_manage" ON public.products FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+
+-- product_images
+DROP POLICY IF EXISTS "product_images_public_select" ON public.product_images;
+CREATE POLICY "product_images_public_select" ON public.product_images FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "product_images_admin_manage" ON public.product_images;
+CREATE POLICY "product_images_admin_manage" ON public.product_images FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+
+-- orders
+-- ⚠️ INSERT est OUVERT au public : les commandes WhatsApp sont créées par des
+--    visiteurs non connectés (services/whatsapp.service.ts → createOrder()).
+--    SELECT / UPDATE / DELETE restent réservés aux utilisateurs authentifiés.
+-- Migration : l'ancienne policy globale FOR ALL est retirée si elle existe.
+DROP POLICY IF EXISTS "orders_admin_manage" ON public.orders;
+
+DROP POLICY IF EXISTS "orders_insert_public" ON public.orders;
+CREATE POLICY "orders_insert_public" ON public.orders FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "orders_admin_select" ON public.orders;
+CREATE POLICY "orders_admin_select" ON public.orders FOR SELECT USING (auth.role() = 'authenticated');
+
+DROP POLICY IF EXISTS "orders_admin_update" ON public.orders;
+CREATE POLICY "orders_admin_update" ON public.orders FOR UPDATE USING (auth.role() = 'authenticated');
+
+DROP POLICY IF EXISTS "orders_admin_delete" ON public.orders;
+CREATE POLICY "orders_admin_delete" ON public.orders FOR DELETE USING (auth.role() = 'authenticated');
+
+-- contact_messages
+DROP POLICY IF EXISTS "contact_messages_insert_public" ON public.contact_messages;
+CREATE POLICY "contact_messages_insert_public" ON public.contact_messages FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "contact_messages_admin_select" ON public.contact_messages;
+CREATE POLICY "contact_messages_admin_select" ON public.contact_messages FOR SELECT USING (auth.role() = 'authenticated');
+
+-- site_settings
+DROP POLICY IF EXISTS "site_settings_public_select" ON public.site_settings;
+CREATE POLICY "site_settings_public_select" ON public.site_settings FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "site_settings_admin_manage" ON public.site_settings;
+CREATE POLICY "site_settings_admin_manage" ON public.site_settings FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+
+-- promos
+DROP POLICY IF EXISTS "promos_public_select" ON public.promos;
+CREATE POLICY "promos_public_select" ON public.promos FOR SELECT USING (is_active = true);
+
+DROP POLICY IF EXISTS "promos_admin_select_all" ON public.promos;
+CREATE POLICY "promos_admin_select_all" ON public.promos FOR SELECT USING (auth.role() = 'authenticated');
+
+DROP POLICY IF EXISTS "promos_admin_manage" ON public.promos;
+CREATE POLICY "promos_admin_manage" ON public.promos FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+
+-- storage
+DROP POLICY IF EXISTS "images_public_select" ON storage.objects;
+CREATE POLICY "images_public_select" ON storage.objects FOR SELECT USING (bucket_id = 'cosmetics-images');
+
+DROP POLICY IF EXISTS "images_authenticated_manage" ON storage.objects;
+CREATE POLICY "images_authenticated_manage" ON storage.objects FOR ALL TO authenticated USING (bucket_id = 'cosmetics-images') WITH CHECK (bucket_id = 'cosmetics-images');
 
 -- =====================================================
 -- REFRESH SCHEMA CACHE
