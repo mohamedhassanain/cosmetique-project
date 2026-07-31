@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Link } from 'react-router-dom';
 import { ShoppingCart, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -11,7 +12,7 @@ interface ProductCardProps {
   product: Product;
 }
 
-export function ProductCard({ product }: Readonly<ProductCardProps>) {
+export const ProductCard = memo(function ProductCard({ product }: Readonly<ProductCardProps>) {
   const { handleWhatsAppOrder, parseImages } = useProductActions();
   const { addToCart } = useCart();
 
@@ -106,4 +107,6 @@ export function ProductCard({ product }: Readonly<ProductCardProps>) {
       </CardContent>
     </Card>
   );
-}
+});
+
+ProductCard.displayName = 'ProductCard';

@@ -1,39 +1,34 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Category, Subcategory } from '@/types/product';
+import {
+  fetchCategories,
+  createCategory as apiCreateCategory,
+  updateCategory as apiUpdateCategory,
+  deleteCategory as apiDeleteCategory,
+  fetchSubcategories as apiFetchSubcategories,
+  createSubcategory as apiCreateSubcategory,
+  updateSubcategory as apiUpdateSubcategory,
+  deleteSubcategory as apiDeleteSubcategory,
+  CategoryInput,
+} from '@/services/category.service';
+import { QUERY_KEYS } from '@/constants/query-keys';
 
 export function useCategories() {
   const queryClient = useQueryClient();
 
   const { data: categories = [], isLoading } = useQuery({
-    queryKey: ['categories'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('categories')
-        .select('*')
-        .order('sort_order', { ascending: true });
-
-      if (error) throw error;
-      return (data || []) as Category[];
-    },
-    staleTime: 1000 * 60 * 10, // Les catégories changent rarement → cache 10 min
+    queryKey: QUERY_KEYS.categories,
+    queryFn: fetchCategories,
+    staleTime: 1000 * 60 * 10,
     gcTime: 1000 * 60 * 15,
   });
 
-  const createCategory = useMutation({
-    mutationFn: async ({ name, slug, description }: { name: string; slug: string; description?: string }) => {
-      const { data, error } = await supabase
-        .from('categories')
-        .insert([{ name, slug, description: description || null }])
-        .select()
-        .single();
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.categories });
 
-      if (error) throw error;
-      return data;
-    },
+  const createCategory = useMutation({
+    mutationFn: (input: CategoryInput) => apiCreateCategory(input),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      void invalidate();
       toast.success('Catégorie créée avec succès');
     },
     onError: (error) => {
@@ -43,24 +38,10 @@ export function useCategories() {
   });
 
   const updateCategory = useMutation({
-    mutationFn: async ({ id, name, slug, description }: { id: string; name?: string; slug?: string; description?: string }) => {
-      const updateData: Record<string, unknown> = {};
-      if (name !== undefined) updateData.name = name;
-      if (slug !== undefined) updateData.slug = slug;
-      if (description !== undefined) updateData.description = description;
-
-      const { data, error } = await supabase
-        .from('categories')
-        .update(updateData)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
+    mutationFn: ({ id, ...input }: { id: string } & Partial<CategoryInput>) =>
+      apiUpdateCategory(id, input),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      void invalidate();
       toast.success('Catégorie mise à jour');
     },
     onError: (error) => {
@@ -70,16 +51,9 @@ export function useCategories() {
   });
 
   const deleteCategory = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('categories')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-    },
+    mutationFn: apiDeleteCategory,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      void invalidate();
       toast.success('Catégorie supprimée');
     },
     onError: (error) => {
@@ -101,35 +75,22 @@ export function useSubcategories(categoryId?: string) {
   const queryClient = useQueryClient();
 
   const { data: subcategories = [], isLoading } = useQuery({
-    queryKey: ['subcategories', categoryId],
+    queryKey: QUERY_KEYS.subcategories(categoryId),
     queryFn: async () => {
       if (!categoryId) return [];
-
-      const { data, error } = await supabase
-        .from('subcategories')
-        .select('*')
-        .eq('category_id', categoryId)
-        .order('sort_order', { ascending: true });
-
-      if (error) throw error;
-      return (data || []) as Subcategory[];
+      return apiFetchSubcategories(categoryId);
     },
     enabled: !!categoryId,
   });
 
-  const createSubcategory = useMutation({
-    mutationFn: async ({ categoryId: catId, name }: { categoryId: string; name: string }) => {
-      const { data, error } = await supabase
-        .from('subcategories')
-        .insert([{ category_id: catId, name }])
-        .select()
-        .single();
+  const invalidate = () =>
+    queryClient.invalidateQueries({ queryKey: QUERY_KEYS.subcategories(categoryId) });
 
-      if (error) throw error;
-      return data;
-    },
+  const createSubcategory = useMutation({
+    mutationFn: ({ catId, name }: { catId: string; name: string }) =>
+      apiCreateSubcategory(catId, name),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['subcategories', categoryId] });
+      void invalidate();
       toast.success('Sous-catégorie créée');
     },
     onError: (error) => {
@@ -139,19 +100,10 @@ export function useSubcategories(categoryId?: string) {
   });
 
   const updateSubcategory = useMutation({
-    mutationFn: async ({ id, name }: { id: string; name: string }) => {
-      const { data, error } = await supabase
-        .from('subcategories')
-        .update({ name })
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
+    mutationFn: ({ id, name }: { id: string; name: string }) =>
+      apiUpdateSubcategory(id, name),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['subcategories', categoryId] });
+      void invalidate();
       toast.success('Sous-catégorie mise à jour');
     },
     onError: (error) => {
@@ -161,16 +113,9 @@ export function useSubcategories(categoryId?: string) {
   });
 
   const deleteSubcategory = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('subcategories')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-    },
+    mutationFn: apiDeleteSubcategory,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['subcategories', categoryId] });
+      void invalidate();
       toast.success('Sous-catégorie supprimée');
     },
     onError: (error) => {

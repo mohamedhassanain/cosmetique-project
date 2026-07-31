@@ -6,7 +6,7 @@ import { useOrders } from '@/hooks/useOrders';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Package, ShoppingCart, Tags, Settings, Plus, LogOut, Sparkles, TrendingUp, Eye, Flower2 } from 'lucide-react';
-import Logo from '@/components/Logo';
+import Logo from '@/components/layout/Logo';
 
 function firstImage(imageUrl: string | null | undefined): string | null {
   if (!imageUrl) return null;

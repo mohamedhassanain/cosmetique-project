@@ -7,13 +7,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { usePublicProducts, ProductFilters } from '@/hooks/useProducts';
 import { useCategories } from '@/hooks/useCategories';
 import { useProductActions } from '@/hooks/useProductActions';
-import { ProductCard } from '@/components/ProductCard';
-import { QuickViewDialog } from '@/components/QuickViewDialog';
-import { ShareDialog } from '@/components/ShareDialog';
-import { CategoryMegaMenu } from '@/components/CategoryMegaMenu';
-import { CartSheet } from '@/components/CartSheet';
-import Logo from '@/components/Logo';
-import { Footer } from '@/components/Footer';
+import { ProductCard } from '@/components/product/ProductCard';
+import { QuickViewDialog } from '@/components/product/QuickViewDialog';
+import { ShareDialog } from '@/components/product/ShareDialog';
+import { CategoryMegaMenu } from '@/components/navigation/CategoryMegaMenu';
+import { CartSheet } from '@/components/cart/CartSheet';
+import Logo from '@/components/layout/Logo';
+import { Footer } from '@/components/layout/Footer';
 import { Product } from '@/types/product';
 import { Search, SlidersHorizontal, X, Flower2, ChevronLeft, ChevronRight } from 'lucide-react';
 

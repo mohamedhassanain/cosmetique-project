@@ -2,26 +2,26 @@ import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "@/hooks/auth-provider";
-import { RequireAuth } from "@/components/RequireAuth";
-import { CartProvider } from "@/hooks/cart-provider";
-import { BottomNav } from "@/components/BottomNav";
-import { FaviconUpdater } from "@/components/FaviconUpdater";
-import Index from "./pages/Index";
+import { QueryProvider } from "@/providers/query-provider";
+import { AuthProvider } from "@/providers/auth-provider";
+import { RequireAuth } from "@/components/shared/RequireAuth";
+import { CartProvider } from "@/providers/cart-provider";
+import { BottomNav } from "@/components/layout/BottomNav";
+import { FaviconUpdater } from "@/components/shared/FaviconUpdater";
+import Index from "./pages/shop/Index";
 
 // Code splitting — chaque page est chargée uniquement quand on y navigue
-const Auth = lazy(() => import("./pages/Auth"));
-const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
-const AdminProducts = lazy(() => import("./pages/AdminProducts"));
-const AdminProductForm = lazy(() => import("./pages/AdminProductForm"));
-const AdminCategories = lazy(() => import("./pages/AdminCategories"));
-const AdminOrders = lazy(() => import("./pages/AdminOrders"));
-const AdminSettings = lazy(() => import("./pages/AdminSettings"));
-const Produits = lazy(() => import("./pages/Produits"));
-const ProduitDetail = lazy(() => import("./pages/ProduitDetail"));
-const NotFound = lazy(() => import("./pages/NotFound"));
+const Auth = lazy(() => import("./pages/auth/Auth"));
+const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
+const AdminProducts = lazy(() => import("./pages/admin/AdminProducts"));
+const AdminProductForm = lazy(() => import("./pages/admin/AdminProductForm"));
+const AdminCategories = lazy(() => import("./pages/admin/AdminCategories"));
+const AdminOrders = lazy(() => import("./pages/admin/AdminOrders"));
+const AdminSettings = lazy(() => import("./pages/admin/AdminSettings"));
+const Produits = lazy(() => import("./pages/shop/Produits"));
+const ProduitDetail = lazy(() => import("./pages/shop/ProduitDetail"));
+const NotFound = lazy(() => import("./pages/errors/NotFound"));
 
 function PageLoader() {
   return (
@@ -31,19 +31,8 @@ function PageLoader() {
   );
 }
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 1000 * 60 * 5,
-      gcTime: 1000 * 60 * 10,
-      refetchOnWindowFocus: false,
-      retry: 1,
-    },
-  },
-});
-
 const App = () => (
-  <QueryClientProvider client={queryClient}>
+  <QueryProvider>
     <AuthProvider>
       <CartProvider>
         <TooltipProvider>
@@ -129,7 +118,7 @@ const App = () => (
         </TooltipProvider>
       </CartProvider>
     </AuthProvider>
-  </QueryClientProvider>
+  </QueryProvider>
 );
 
 export default App;

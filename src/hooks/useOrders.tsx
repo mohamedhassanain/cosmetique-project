@@ -1,38 +1,28 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import {
+  fetchOrders,
+  updateOrderStatus as apiUpdateOrderStatus,
+  deleteOrder as apiDeleteOrder,
+} from '@/services/order.service';
+import { QUERY_KEYS } from '@/constants/query-keys';
 import { Order } from '@/types/product';
 
 export function useOrders() {
   const queryClient = useQueryClient();
 
   const { data: orders = [], isLoading } = useQuery({
-    queryKey: ['orders'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('orders')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      return (data || []) as Order[];
-    },
+    queryKey: QUERY_KEYS.orders,
+    queryFn: fetchOrders,
   });
 
-  const updateOrderStatus = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const { data, error } = await supabase
-        .from('orders')
-        .update({ status })
-        .eq('id', id)
-        .select()
-        .single();
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.orders });
 
-      if (error) throw error;
-      return data;
-    },
+  const updateOrderStatus = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
+      apiUpdateOrderStatus(id, status),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      void invalidate();
       toast.success('Statut de la commande mis à jour');
     },
     onError: (error: Error) => {
@@ -41,16 +31,9 @@ export function useOrders() {
   });
 
   const deleteOrder = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('orders')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-    },
+    mutationFn: apiDeleteOrder,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      void invalidate();
       toast.success('Commande supprimée');
     },
     onError: (error: Error) => {
@@ -58,8 +41,8 @@ export function useOrders() {
     },
   });
 
-  const pendingOrders = orders.filter(o => o.status === 'pending');
-  const completedOrders = orders.filter(o => o.status === 'completed');
+  const pendingOrders = orders.filter((o: Order) => o.status === 'pending');
+  const completedOrders = orders.filter((o: Order) => o.status === 'completed');
 
   return {
     orders,

@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import Auth from '../Auth';
+import Auth from '../auth/Auth';
 import { BrowserRouter } from 'react-router-dom';
 
 // Mock de sonner pour éviter de monter le Toaster
@@ -16,7 +16,7 @@ vi.mock('sonner', () => ({
 // Mock de useAuth
 const mockSignIn = vi.fn();
 
-vi.mock('@/hooks/auth-utils', () => ({
+vi.mock('@/providers/auth-utils', () => ({
   useAuth: () => ({
     signIn: mockSignIn,
     user: null,
@@ -24,7 +24,7 @@ vi.mock('@/hooks/auth-utils', () => ({
   }),
 }));
 
-vi.mock('@/hooks/auth-provider', () => ({
+vi.mock('@/providers/auth-provider', () => ({
   AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 

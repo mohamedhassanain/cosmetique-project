@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { useAuth } from '@/hooks/auth-utils';
+import { useAuth } from '@/providers/auth-utils';
 import { useLoginBackoff } from '@/hooks/useLoginBackoff';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

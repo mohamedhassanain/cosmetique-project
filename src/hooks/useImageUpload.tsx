@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { uploadImage as apiUploadImage } from '@/services/storage.service';
 import { toast } from 'sonner';
 
 export function useImageUpload() {
@@ -8,21 +8,7 @@ export function useImageUpload() {
   const uploadImage = useCallback(async (file: File, folder: string = 'products'): Promise<string | null> => {
     try {
       setUploading(true);
-      
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${folder}/${crypto.randomUUID()}.${fileExt}`;
-      
-      const { error: uploadError } = await supabase.storage
-        .from('cosmetics-images')
-        .upload(fileName, file);
-      
-      if (uploadError) throw uploadError;
-      
-      const { data } = supabase.storage
-        .from('cosmetics-images')
-        .getPublicUrl(fileName);
-      
-      return data.publicUrl;
+      return await apiUploadImage(file, folder);
     } catch (error) {
       console.error('Upload error:', error);
       toast.error('Erreur lors du téléchargement de l\'image');

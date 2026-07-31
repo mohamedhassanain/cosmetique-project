@@ -30,3 +30,6 @@ dist-ssr
 
 # Testing
 coverage/
+
+# Supabase CLI temporaire
+supabase/.temp/
