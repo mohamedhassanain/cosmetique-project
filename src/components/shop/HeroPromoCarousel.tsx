@@ -11,7 +11,7 @@ const AUTOPLAY_MS = 5000;
 
 /**
  * Carrousel de publicités carrées, affiché à droite du hero sur desktop.
- * L'admin peut créer plusieurs pubs ; elles défilent automatiquement
+ * L'admin gère plusieurs pubs (image + lien) ; elles défilent automatiquement
  * avec points de navigation et flèches. Masqué sur mobile.
  */
 export function HeroPromoCarousel() {
@@ -42,31 +42,36 @@ export function HeroPromoCarousel() {
   return (
     <div className="hidden md:block">
       <div className="relative aspect-square w-full max-w-md mx-auto rounded-[2rem] overflow-hidden bg-gradient-to-br from-pink-300 via-rose-200 to-purple-200 border-4 border-white shadow-2xl">
-        {/* Décor flous */}
-        <div className="absolute -top-10 -right-10 h-40 w-40 bg-pink-400/30 rounded-full blur-2xl" />
-        <div className="absolute -bottom-12 -left-12 h-44 w-44 bg-purple-300/30 rounded-full blur-2xl" />
-
         {promo.image_url ? (
-          <img src={promo.image_url} alt={promo.title} className="absolute inset-0 w-full h-full object-cover" />
-        ) : null}
+          <>
+            <img src={promo.image_url} alt={promo.title} className="absolute inset-0 w-full h-full object-cover" />
+            <Link to={promo.link} className="absolute inset-0" aria-label="Voir la promotion" />
+          </>
+        ) : (
+          <>
+            {/* Décor flous */}
+            <div className="absolute -top-10 -right-10 h-40 w-40 bg-pink-400/30 rounded-full blur-2xl" />
+            <div className="absolute -bottom-12 -left-12 h-44 w-44 bg-purple-300/30 rounded-full blur-2xl" />
 
-        <Link to={promo.link} className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-8 text-center">
-          <Badge className="bg-pink-500 text-white border-none px-4 py-1 shadow-lg text-sm font-bold">
-            <Sparkles className="h-3.5 w-3.5 mr-1" />
-            {promo.badge || 'PROMO DU MOMENT'}
-          </Badge>
+            <Link to={promo.link} className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-8 text-center">
+              <Badge className="bg-pink-500 text-white border-none px-4 py-1 shadow-lg text-sm font-bold">
+                <Sparkles className="h-3.5 w-3.5 mr-1" />
+                {promo.badge || 'PROMO DU MOMENT'}
+              </Badge>
 
-          <Logo className="h-20 w-20" />
+              <Logo className="h-20 w-20" />
 
-          <h3 className="font-display text-3xl font-bold text-pink-900 leading-tight">{promo.title}</h3>
-          {promo.subtitle && (
-            <p className="text-pink-700/80 text-sm max-w-[220px]">{promo.subtitle}</p>
-          )}
+              <h3 className="font-display text-3xl font-bold text-pink-900 leading-tight">{promo.title}</h3>
+              {promo.subtitle && (
+                <p className="text-pink-700/80 text-sm max-w-[220px]">{promo.subtitle}</p>
+              )}
 
-          <Button className="mt-2 bg-pink-400 hover:bg-pink-500 text-white rounded-full px-6 shadow-lg" asChild>
-            <span>Découvrir <ArrowRight className="h-4 w-4 ml-2" /></span>
-          </Button>
-        </Link>
+              <Button className="mt-2 bg-pink-400 hover:bg-pink-500 text-white rounded-full px-6 shadow-lg" asChild>
+                <span>Découvrir <ArrowRight className="h-4 w-4 ml-2" /></span>
+              </Button>
+            </Link>
+          </>
+        )}
 
         {/* Flèches (si plusieurs pubs) */}
         {count > 1 && (

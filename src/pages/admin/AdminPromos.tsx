@@ -9,28 +9,21 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Upload, Loader2, X, Plus, Pencil, Trash2, Megaphone } from 'lucide-react';
+import { ArrowLeft, Upload, Loader2, X, Pencil, Trash2, Megaphone, GripVertical } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Promo } from '@/types/site';
 
 interface PromoFormState {
   id: string | null;
-  badge: string;
-  title: string;
-  subtitle: string;
   link: string;
   is_active: boolean;
-  sort_order: number;
   image_url: string;
 }
 
 const EMPTY_FORM: PromoFormState = {
   id: null,
-  badge: '',
-  title: '',
-  subtitle: '',
   link: '/produits?promotions=true',
   is_active: true,
-  sort_order: 0,
   image_url: '',
 };
 
@@ -47,9 +40,17 @@ export default function AdminPromos() {
   const [isEditing, setIsEditing] = useState(false);
   const [imagePreview, setImagePreview] = useState('');
 
+  // Liste ordonnée localement pour le drag & drop
+  const [orderedPromos, setOrderedPromos] = useState<Promo[]>([]);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+
   useEffect(() => {
     if (!authLoading && !user) navigate('/auth');
   }, [user, authLoading, navigate]);
+
+  useEffect(() => {
+    setOrderedPromos(promos);
+  }, [promos]);
 
   const resetForm = () => {
     setForm(EMPTY_FORM);
@@ -57,15 +58,11 @@ export default function AdminPromos() {
     setIsEditing(false);
   };
 
-  const startEdit = (p: NonNullable<typeof promos>[number]) => {
+  const startEdit = (p: Promo) => {
     setForm({
       id: p.id,
-      badge: p.badge || '',
-      title: p.title,
-      subtitle: p.subtitle || '',
       link: p.link,
       is_active: p.is_active,
-      sort_order: p.sort_order,
       image_url: p.image_url || '',
     });
     setImagePreview(p.image_url || '');
@@ -84,15 +81,16 @@ export default function AdminPromos() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.title.trim()) return;
 
     const payload = {
-      badge: form.badge,
-      title: form.title,
-      subtitle: form.subtitle,
+      // Badge/titre/sous-titre ne sont plus saisis dans l'admin :
+      // la pub est une image plein cadre. Titre garde une valeur par défaut
+      // pour la contrainte NOT NULL de la table.
+      badge: null,
+      title: 'Promotion',
+      subtitle: null,
       link: form.link,
       is_active: form.is_active,
-      sort_order: Number(form.sort_order) || 0,
       image_url: form.image_url,
     };
 
@@ -117,8 +115,31 @@ export default function AdminPromos() {
     }
   };
 
-  const toggleActive = (p: NonNullable<typeof promos>[number]) => {
+  const toggleActive = (p: Promo) => {
     updatePromo.mutate({ id: p.id, is_active: !p.is_active });
+  };
+
+  /** Dépose l'élément déplacé et met à jour les sort_order. */
+  const handleDrop = (targetIndex: number) => {
+    if (dragIndex === null || dragIndex === targetIndex) {
+      setDragIndex(null);
+      return;
+    }
+
+    const next = [...orderedPromos];
+    const [moved] = next.splice(dragIndex, 1);
+    next.splice(targetIndex, 0, moved);
+
+    setOrderedPromos(next);
+
+    // Persiste le nouvel ordre (sort_order = position dans la liste).
+    next.forEach((p, i) => {
+      if (p.sort_order !== i) {
+        updatePromo.mutate({ id: p.id, sort_order: i });
+      }
+    });
+
+    setDragIndex(null);
   };
 
   if (authLoading || isLoading) {
@@ -146,7 +167,7 @@ export default function AdminPromos() {
                 </h2>
 
                 <div className="space-y-2">
-                  <Label>Image (optionnelle)</Label>
+                  <Label>Image</Label>
                   <div className="flex items-center gap-4">
                     <div className="w-20 h-20 rounded-2xl bg-pink-50 overflow-hidden border border-pink-100 flex items-center justify-center">
                       {imagePreview ? <img src={imagePreview} alt="" className="w-full h-full object-cover" /> : <Upload className="h-8 w-8 text-pink-300" />}
@@ -165,22 +186,13 @@ export default function AdminPromos() {
                   </div>
                 </div>
 
-                <div className="space-y-2"><Label>Badge</Label><Input value={form.badge} onChange={e => setForm(f => ({ ...f, badge: e.target.value }))} placeholder="PROMO DU MOMENT" className="border-pink-200" /></div>
-                <div className="space-y-2"><Label>Titre *</Label><Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Jusqu'à -50%" className="border-pink-200" required /></div>
-                <div className="space-y-2"><Label>Sous-titre</Label><Input value={form.subtitle} onChange={e => setForm(f => ({ ...f, subtitle: e.target.value }))} placeholder="Sur une sélection de cosmétiques naturels & bio" className="border-pink-200" /></div>
                 <div className="space-y-2"><Label>Lien</Label><Input value={form.link} onChange={e => setForm(f => ({ ...f, link: e.target.value }))} placeholder="/produits?promotions=true" className="border-pink-200" /></div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Ordre d'affichage</Label>
-                    <Input type="number" value={form.sort_order} onChange={e => setForm(f => ({ ...f, sort_order: Number(e.target.value) }))} className="border-pink-200" />
-                  </div>
-                  <div className="space-y-2 flex items-end">
-                    <label className="flex items-center gap-2 pb-2 cursor-pointer">
-                      <Switch checked={form.is_active} onCheckedChange={v => setForm(f => ({ ...f, is_active: v }))} aria-label="Activer la publicité" />
-                      <span className="text-sm text-pink-700">Active</span>
-                    </label>
-                  </div>
+                <div className="flex items-end">
+                  <label className="flex items-center gap-2 pb-2 cursor-pointer">
+                    <Switch checked={form.is_active} onCheckedChange={v => setForm(f => ({ ...f, is_active: v }))} aria-label="Activer la publicité" />
+                    <span className="text-sm text-pink-700">Active</span>
+                  </label>
                 </div>
 
                 <div className="flex gap-3">
@@ -197,20 +209,35 @@ export default function AdminPromos() {
             </CardContent>
           </Card>
 
-          {/* Liste des pubs */}
+          {/* Liste des pubs — drag & drop pour l'ordre d'affichage */}
           <div className="space-y-3">
-            {promos.length === 0 && (
+            <p className="text-sm text-pink-500 text-center">
+              Glissez les publicités pour changer leur ordre d'affichage.
+            </p>
+            {orderedPromos.length === 0 && (
               <p className="text-center text-pink-400 py-8">Aucune publicité. Ajoutez-en une ci-dessus.</p>
             )}
-            {promos.map((p, i) => (
-              <Card key={p.id} className={cn("border-pink-100", !p.is_active && "opacity-60")}>
+            {orderedPromos.map((p, i) => (
+              <Card
+                key={p.id}
+                draggable
+                onDragStart={() => setDragIndex(i)}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={() => handleDrop(i)}
+                className={cn(
+                  "border-pink-100 cursor-grab active:cursor-grabbing select-none",
+                  !p.is_active && "opacity-60",
+                  dragIndex === i && "ring-2 ring-pink-300"
+                )}
+              >
                 <CardContent className="flex items-center gap-4 py-4">
+                  <GripVertical className="h-5 w-5 text-pink-300 shrink-0" />
                   <div className="h-14 w-14 rounded-xl bg-pink-50 overflow-hidden border border-pink-100 shrink-0">
                     {p.image_url ? <img src={p.image_url} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><Megaphone className="h-6 w-6 text-pink-300" /></div>}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-pink-900 truncate">{p.title}</p>
-                    <p className="text-xs text-pink-500 truncate">{p.badge || '—'} · ordre {p.sort_order}</p>
+                    <p className="font-semibold text-pink-900 truncate">Publicité {i + 1}</p>
+                    <p className="text-xs text-pink-500 truncate">{p.link}</p>
                   </div>
                   <Switch
                     checked={p.is_active}
