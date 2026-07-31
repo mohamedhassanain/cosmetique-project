@@ -7,6 +7,7 @@ import { useCategories } from '@/hooks/useCategories';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { ProductCard } from '@/components/product/ProductCard';
 import { ProductCarousel } from '@/components/product/ProductCarousel';
+import { HeroPromoCard } from '@/components/shop/HeroPromoCard';
 import { QuickViewDialog } from '@/components/product/QuickViewDialog';
 import { ShareDialog } from '@/components/product/ShareDialog';
 import { CartSheet } from '@/components/cart/CartSheet';
@@ -72,7 +73,8 @@ export default function Index() {
       {/* Hero Section */}
       <section className="relative overflow-hidden bg-gradient-to-br from-pink-100 via-rose-50 to-purple-50">
         <div className="max-w-7xl mx-auto px-4 py-20 md:py-28 relative z-10">
-          <div className="max-w-2xl">
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 bg-white/60 backdrop-blur-md rounded-full px-4 py-1.5 mb-6 border border-pink-200">
               <Leaf className="h-4 w-4 text-green-500" />
               <span className="text-sm font-medium text-pink-800">Cosmétiques naturels & bio</span>
@@ -83,20 +85,24 @@ export default function Index() {
             <p className="text-lg text-pink-700/80 mb-8 leading-relaxed">
               {settings?.hero_subtitle || 'Découvrez notre sélection de cosmétiques naturels et bio au Maroc'}
             </p>
-            <div className="flex flex-wrap gap-4">
-              <Button asChild size="lg" className="bg-pink-400 hover:bg-pink-500 text-white rounded-full px-8 h-12 shadow-lg">
-                <Link to="/produits">
-                  <Flower2 className="h-5 w-5 mr-2" />
-                  Découvrir nos produits
-                </Link>
-              </Button>
-              <Button asChild variant="outline" size="lg" className="border-pink-300 text-pink-700 hover:bg-pink-50 rounded-full px-8 h-12">
-                <Link to="/produits?promotions=true">
-                  <Heart className="h-5 w-5 mr-2" />
-                  Nos promos
-                </Link>
-              </Button>
+              <div className="flex flex-wrap gap-4">
+                <Button asChild size="lg" className="bg-pink-400 hover:bg-pink-500 text-white rounded-full px-8 h-12 shadow-lg">
+                  <Link to="/produits">
+                    <Flower2 className="h-5 w-5 mr-2" />
+                    Découvrir nos produits
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" size="lg" className="border-pink-300 text-pink-700 hover:bg-pink-50 rounded-full px-8 h-12">
+                  <Link to="/produits?promotions=true">
+                    <Heart className="h-5 w-5 mr-2" />
+                    Nos promos
+                  </Link>
+                </Button>
+              </div>
             </div>
+
+            {/* Carte pub à droite (desktop) */}
+            <HeroPromoCard />
           </div>
         </div>
         <div className="absolute -top-20 -right-20 w-96 h-96 bg-pink-200/30 rounded-full blur-3xl" />
