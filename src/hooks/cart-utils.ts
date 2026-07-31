@@ -1,10 +1,2 @@
-import { useContext } from 'react';
-import { CartContext } from './cart-context';
-
-export function useCart() {
-  const context = useContext(CartContext);
-  if (context === undefined) {
-    throw new Error('useCart must be used within a CartProvider');
-  }
-  return context;
-}
+// Brise-pont : l'ancien chemin hooks/cart-utils ré-exporte useCart depuis providers/.
+export { useCart } from '@/providers/cart-utils';
