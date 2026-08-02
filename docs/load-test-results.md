@@ -15,32 +15,44 @@ k6 run -e TARGET_URL=https://<domaine-production> scripts/k6-load-test.js
 
 ## Résultats réels (02/08/2026)
 
+### Run 1 — 20 VU (scénario standard)
+
 | Métrique | Valeur | Seuil cible | Statut |
 |---|---|---|---|
 | `http_req_duration` p(95) | **2.62 ms** | < 800 ms | ✅ Validé |
 | `http_req_failed` | **0.00 %** (0/927) | < 1 % | ✅ Validé |
 | Requêtes totales | 927 (7.60 req/s) | — | — |
 | Checks réussis | 1854/1854 (100 %) | — | — |
-| Durée moyenne | 1.77 ms (médiane 1.69 ms, max 12.6 ms) | — | — |
-| Données reçues | 3.5 MB (29 kB/s) | — | — |
-| VU max | 20 | — | — |
 
-**Sortie k6 (extraits) :**
+### Run 2 — 500 VU (stress) `k6 run -e MAX_VUS=500 -e DURATION=1m`
+
+| Métrique | Valeur | Seuil cible | Statut |
+|---|---|---|---|
+| `http_req_duration` p(95) | **2.09 ms** | < 800 ms | ✅ Validé |
+| `http_req_failed` | **0.00 %** (0/22 784) | < 1 % | ✅ Validé |
+| Requêtes totales | 22 784 (185.83 req/s) | — | — |
+| Checks réussis | 45 568/45 568 (100 %) | — | — |
+| Durée moyenne | 1.08 ms (max 21.15 ms) | — | — |
+| Données reçues | 86 MB (700 kB/s) | — | — |
+| VU max | 500 | — | — |
+
+**Sortie k6 run 2 (extraits) :**
 
 ```
 █ THRESHOLDS
   http_req_duration
-  ✓ 'p(95)<800' p(95)=2.62ms
+  ✓ 'p(95)<800' p(95)=2.09ms
   http_req_failed
   ✓ 'rate<0.01' rate=0.00%
 
 █ TOTAL RESULTS
-  checks_total.......: 1854    15.19/s
-  checks_succeeded...: 100.00% 1854 out of 1854
+  checks_total.......: 45568   371.67/s
+  checks_succeeded...: 100.00% 45568 out of 45568
   ✓ status est 200
   ✓ réponse non vide
-  http_req_duration..: avg=1.77ms med=1.69ms max=12.6ms
-  http_reqs..........: 927     7.60/s
+  http_req_duration..: avg=1.08ms med=1.04ms max=21.15ms
+  http_reqs..........: 22784   185.83/s
+  vus_max............: 500
 ```
 
 ## Scénario

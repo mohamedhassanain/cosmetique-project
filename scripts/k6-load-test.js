@@ -1,23 +1,25 @@
 // Script de test de charge pour l'application Kissariya.
 // Exécution :
 //   k6 run scripts/k6-load-test.js
-//
-// Scénario : charge légère et constante (simule une boutique vitrine
-// avec pics de visite le week-end) contre le site EN PRODUCTION.
+//   k6 run -e MAX_VUS=1000 -e DURATION=1m scripts/k6-load-test.js
 //
 // Variables :
-//   k6 run -e TARGET_URL=https://kissariya.vercel.app scripts/k6-load-test.js
+//   TARGET_URL — URL cible (défaut: http://localhost:4173)
+//   MAX_VUS    — nombre max d'utilisateurs virtuels (défaut: 20)
+//   DURATION   — durée du palier (défaut: 2m, format k6 ex: "30s", "1m", "5m")
 
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 
 const TARGET_URL = __ENV.TARGET_URL || 'http://localhost:4173';
+const MAX_VUS = Number(__ENV.MAX_VUS || 20);
+const DURATION = __ENV.DURATION || '2m';
 
 export const options = {
-  // Monter à 20 VU en 30s, rester 1min, redescendre.
+  // Rampe vers le max, palier à charge constante, descente.
   stages: [
-    { duration: '30s', target: 20 },
-    { duration: '1m', target: 20 },
+    { duration: '30s', target: MAX_VUS },
+    { duration: DURATION, target: MAX_VUS },
     { duration: '30s', target: 0 },
   ],
   thresholds: {
@@ -26,7 +28,7 @@ export const options = {
   },
 };
 
-// Page la plus lourde (pay-load admin exclu, protégé par auth).
+// Pages publiques principales (admin exclu, protégé par auth).
 const PAGES = [
   '/',
   '/produits',
