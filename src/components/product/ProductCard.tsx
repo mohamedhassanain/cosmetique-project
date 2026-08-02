@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Product } from '@/types/product';
 import { useProductActions } from '@/hooks/useProductActions';
 import { useCart } from '@/hooks/cart-utils';
+import { useIsDesktop } from '@/hooks/useIsDesktop';
 
 interface ProductCardProps {
   product: Product;
@@ -15,9 +16,16 @@ interface ProductCardProps {
 export const ProductCard = memo(function ProductCard({ product }: Readonly<ProductCardProps>) {
   const { handleWhatsAppOrder, parseImages } = useProductActions();
   const { addToCart } = useCart();
+  const isDesktop = useIsDesktop();
 
   const images = parseImages(product.image_url);
   const displayImage = images[0];
+
+  // Sur PC (souris), la fiche produit s'ouvre dans un nouvel onglet.
+  // Sur mobile et tablette (tactile), la navigation actuelle est conservée.
+  const productLinkProps = isDesktop
+    ? { target: '_blank', rel: 'noopener noreferrer' }
+    : {};
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -38,7 +46,7 @@ export const ProductCard = memo(function ProductCard({ product }: Readonly<Produ
 
   return (
     <Card className="group border-none bg-white hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 overflow-hidden rounded-2xl shadow-sm">
-      <Link to={`/produit/${product.slug}`}>
+      <Link to={`/produit/${product.slug}`} {...productLinkProps}>
         <div className="aspect-square relative overflow-hidden w-full rounded-t-2xl bg-pink-50">
           {displayImage ? (
             <img
@@ -77,7 +85,7 @@ export const ProductCard = memo(function ProductCard({ product }: Readonly<Produ
       </Link>
       
       <CardContent className="p-4">
-        <Link to={`/produit/${product.slug}`}>
+        <Link to={`/produit/${product.slug}`} {...productLinkProps}>
           <h3 className="font-bold text-slate-800 text-sm line-clamp-2 h-10 group-hover:text-pink-600 transition-colors">
             {product.name}
           </h3>

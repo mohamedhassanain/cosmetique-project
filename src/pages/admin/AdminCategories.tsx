@@ -133,7 +133,7 @@ function CategoryAccordionItem({ category, onEdit, onDelete }: { category: { id:
     if (editingSub) {
       await updateSubcategory.mutateAsync({ id: editingSub.id, name: subName.trim() });
     } else {
-      await createSubcategory.mutateAsync({ categoryId: category.id, name: subName.trim() });
+      await createSubcategory.mutateAsync({ catId: category.id, name: subName.trim() });
     }
     setSubDialogOpen(false);
     setSubName('');

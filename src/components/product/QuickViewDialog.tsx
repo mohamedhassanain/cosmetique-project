@@ -4,10 +4,11 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Share2, ShoppingCart, MessageCircle, Package, ChevronLeft, ChevronRight, Sparkles, Leaf } from 'lucide-react';
+import { Share2, ShoppingCart, MessageCircle, Package, ChevronLeft, ChevronRight, Sparkles, Leaf, ExternalLink } from 'lucide-react';
 import { Product } from '@/types/product';
 import { useProductActions } from '@/hooks/useProductActions';
 import { useCart } from '@/hooks/cart-utils';
+import { useIsDesktop } from '@/hooks/useIsDesktop';
 
 interface QuickViewDialogProps {
   product: Product | null;
@@ -20,8 +21,15 @@ export function QuickViewDialog({ product, isOpen, onOpenChange, onShare }: Read
   const [imageIndex, setImageIndex] = useState(0);
   const { handleWhatsAppOrder, parseImages } = useProductActions();
   const { addToCart } = useCart();
+  const isDesktop = useIsDesktop();
 
   const images = useMemo(() => (product ? parseImages(product.image_url) : []), [product, parseImages]);
+
+  // Sur PC (souris), le lien vers la fiche complète s'ouvre dans un nouvel onglet.
+  // Sur mobile et tablette, la navigation actuelle est conservée.
+  const productLinkProps = isDesktop
+    ? { target: '_blank', rel: 'noopener noreferrer' }
+    : {};
 
   if (!product) return null;
 
@@ -135,6 +143,12 @@ export function QuickViewDialog({ product, isOpen, onOpenChange, onShare }: Read
             </ScrollArea>
             
             <div className="space-y-2 pt-3 border-t border-pink-100 bg-white">
+              {/* Voir la fiche complète — nouvel onglet sur PC uniquement */}
+              <Button variant="outline" className="w-full h-10 border-pink-200 text-pink-600 hover:bg-pink-50 rounded-xl text-sm font-bold shadow-sm gap-2" asChild>
+                <Link to={`/produit/${product.slug}`} {...productLinkProps}>
+                  <ExternalLink className="h-4 w-4" /> Voir la fiche complète
+                </Link>
+              </Button>
               <Button variant="outline" className="w-full h-10 border-pink-200 text-pink-600 hover:bg-pink-50 rounded-xl text-sm font-bold shadow-sm gap-2"
                 onClick={() => onShare(product)}>
                 <Share2 className="h-4 w-4" /> Partager
