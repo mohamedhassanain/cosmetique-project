@@ -1,7 +1,11 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
+import { initSentry } from "./integrations/sentry";
 import "./index.css";
+
+// Monitoring des erreurs : no-op si VITE_SENTRY_DSN n'est pas défini.
+initSentry();
 
 const rootElement = document.getElementById("root");
 
