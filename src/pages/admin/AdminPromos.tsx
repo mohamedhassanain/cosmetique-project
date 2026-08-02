@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '@/hooks/auth-utils';
+import { useAuth } from '@/providers/auth-utils';
 import { useAllPromos, useCreatePromo, useUpdatePromo, useDeletePromo } from '@/hooks/usePromos';
 import { useImageUpload } from '@/hooks/useImageUpload';
 import { Button } from '@/components/ui/button';

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { useAuth } from '@/hooks/auth-utils';
+import { useAuth } from '@/providers/auth-utils';
 import { useProducts, useCreateProduct, useUpdateProduct, ProductFormData } from '@/hooks/useProducts';
 import { useCategories, useSubcategories } from '@/hooks/useCategories';
 import { useImageUpload } from '@/hooks/useImageUpload';
@@ -36,7 +36,6 @@ export default function AdminProductForm() {
   const { categories } = useCategories();
   const { uploadImage, uploading } = useImageUpload();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const videoInputRef = useRef<HTMLInputElement>(null);
 
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');

@@ -113,7 +113,6 @@ export function CategoryMegaMenu() {
       {isNarrow && drawerOpen && drawerCategory && activeCat && (
         <MobileDrawer
           category={activeCat}
-          subcategories={subcategories}
           leftSubs={leftSubs}
           rightSubs={rightSubs}
           onClose={closeDrawer}
@@ -246,14 +245,12 @@ function CategoryPanelContent({
 
 function MobileDrawer({
   category,
-  subcategories,
   leftSubs,
   rightSubs,
   onClose,
   onNavigate,
 }: {
   category: { id: string; name: string; slug: string };
-  subcategories: { id: string; name: string; slug: string | null }[];
   leftSubs: { id: string; name: string; slug: string | null }[];
   rightSubs: { id: string; name: string; slug: string | null }[];
   onClose: () => void;

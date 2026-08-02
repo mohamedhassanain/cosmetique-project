@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Product } from '@/types/product';
 import { useProductActions } from '@/hooks/useProductActions';
-import { useCart } from '@/hooks/cart-utils';
+import { useCart } from '@/providers/cart-utils';
 import { useIsDesktop } from '@/hooks/useIsDesktop';
 
 interface ProductCardProps {

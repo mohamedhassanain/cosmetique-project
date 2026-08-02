@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -9,11 +8,10 @@ import { ShareDialog } from '@/components/product/ShareDialog';
 import Logo from '@/components/layout/Logo';
 import { Footer } from '@/components/layout/Footer';
 import { useProductActions } from '@/hooks/useProductActions';
-import { useCart } from '@/hooks/cart-utils';
+import { useCart } from '@/providers/cart-utils';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { useProductBySlug } from '@/hooks/useProducts';
 import { useSeo } from '@/hooks/useSeo';
-import { Product } from '@/types/product';
 import { ShoppingCart, MessageCircle, Share2, ChevronLeft, ChevronRight, Sparkles, Leaf, Flower2, Package, Play, MapPin, Navigation, X } from 'lucide-react';
 
 type MediaItem = { type: 'image' | 'video'; url: string };

@@ -4,10 +4,10 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Share2, ShoppingCart, MessageCircle, Package, ChevronLeft, ChevronRight, Sparkles, Leaf, ExternalLink } from 'lucide-react';
+import { Share2, ShoppingCart, MessageCircle, Package, ChevronLeft, ChevronRight, Leaf, ExternalLink } from 'lucide-react';
 import { Product } from '@/types/product';
 import { useProductActions } from '@/hooks/useProductActions';
-import { useCart } from '@/hooks/cart-utils';
+import { useCart } from '@/providers/cart-utils';
 import { useIsDesktop } from '@/hooks/useIsDesktop';
 
 interface QuickViewDialogProps {

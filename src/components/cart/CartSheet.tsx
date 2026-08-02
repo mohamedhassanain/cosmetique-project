@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { useCart } from '@/hooks/cart-utils';
+import { useCart } from '@/providers/cart-utils';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { ShoppingCart, Trash2, Plus, Minus, MessageCircle } from 'lucide-react';

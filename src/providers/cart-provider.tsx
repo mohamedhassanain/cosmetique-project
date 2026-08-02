@@ -27,6 +27,23 @@ export function CartProvider({ children }: Readonly<{ children: React.ReactNode 
     localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
   }, [items]);
 
+  // Synchronisation multi-onglets : quand un autre onglet modifie le panier
+  // (event `storage` du navigateur, déclenché uniquement dans les AUTRES onglets),
+  // on recharge le panier depuis localStorage pour rester cohérent.
+  useEffect(() => {
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== CART_STORAGE_KEY) return;
+      try {
+        const parsed = event.newValue ? JSON.parse(event.newValue) : [];
+        setItems(Array.isArray(parsed) ? parsed : []);
+      } catch {
+        // Valeur corrompue dans un autre onglet → on ignore, le panier garde son état local.
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
+
   const addToCart = useCallback((newItem: Omit<CartItem, 'quantity'>) => {
     setItems((prev) => {
       const existing = prev.find((i) => i.id === newItem.id);

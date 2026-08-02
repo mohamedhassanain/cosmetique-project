@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '@/hooks/auth-utils';
+import { useAuth } from '@/providers/auth-utils';
 import { useProducts } from '@/hooks/useProducts';
 import { useOrders } from '@/hooks/useOrders';
 import { Button } from '@/components/ui/button';
@@ -21,8 +21,8 @@ function firstImage(imageUrl: string | null | undefined): string | null {
 
 export default function AdminDashboard() {
   const { user, loading: authLoading, signOut } = useAuth();
-  const { products, featuredProducts, promotionProducts, isLoading: productsLoading } = useProducts();
-  const { pendingOrders, isLoading: ordersLoading } = useOrders();
+  const { products, featuredProducts, promotionProducts } = useProducts();
+  const { pendingOrders } = useOrders();
   const navigate = useNavigate();
 
   useEffect(() => {

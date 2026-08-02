@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '@/hooks/auth-utils';
+import { useAuth } from '@/providers/auth-utils';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { useImageUpload } from '@/hooks/useImageUpload';
 import { Button } from '@/components/ui/button';
@@ -13,7 +13,7 @@ import { ArrowLeft, Upload, Loader2, X } from 'lucide-react';
 export default function AdminSettings() {
   const { user, loading: authLoading } = useAuth();
   const { settings, isLoading, updateSettings } = useSiteSettings();
-  const { uploadImage, uploading } = useImageUpload();
+  const { uploadImage } = useImageUpload();
   const navigate = useNavigate();
 
   const [siteName, setSiteName] = useState('');

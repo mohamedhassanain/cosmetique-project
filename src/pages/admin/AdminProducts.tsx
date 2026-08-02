@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '@/hooks/auth-utils';
+import { useAuth } from '@/providers/auth-utils';
 import { useProducts, useDeleteProduct } from '@/hooks/useProducts';
 import { useCategories, useSubcategories } from '@/hooks/useCategories';
 import { Button } from '@/components/ui/button';

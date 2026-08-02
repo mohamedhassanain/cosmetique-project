@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import Logo from './Logo';
 import { useCategories, useSubcategories } from '@/hooks/useCategories';
-import { Heart, MessageCircle, Flower2 } from 'lucide-react';
+import { MessageCircle, Flower2 } from 'lucide-react';
 
 function CategoryColumn({ cat }: { cat: { id: string; name: string; slug: string } }) {
   const { subcategories } = useSubcategories(cat.id);
