@@ -1,8 +1,7 @@
 # Rapport de test de charge — Kissariya Cosmétiques
 
-> Statut : **Prêt à exécuter** — k6 n'est pas installé sur la machine de dev locale
-> (Windows, aucun binaire `k6` disponible). Le script standard est fourni et doit
-> être lancé en CI (GitHub Actions) ou sur toute machine disposant de k6.
+> Statut : ✅ **Exécuté avec succès** — k6 v2.1.0 (Windows), cible locale `http://localhost:4173`
+> (serveur `vite preview` servi sur le build de production). Exécuté le 02/08/2026.
 
 ## Exécution
 
@@ -12,6 +11,36 @@ k6 run scripts/k6-load-test.js
 
 # Cible production
 k6 run -e TARGET_URL=https://<domaine-production> scripts/k6-load-test.js
+```
+
+## Résultats réels (02/08/2026)
+
+| Métrique | Valeur | Seuil cible | Statut |
+|---|---|---|---|
+| `http_req_duration` p(95) | **2.62 ms** | < 800 ms | ✅ Validé |
+| `http_req_failed` | **0.00 %** (0/927) | < 1 % | ✅ Validé |
+| Requêtes totales | 927 (7.60 req/s) | — | — |
+| Checks réussis | 1854/1854 (100 %) | — | — |
+| Durée moyenne | 1.77 ms (médiane 1.69 ms, max 12.6 ms) | — | — |
+| Données reçues | 3.5 MB (29 kB/s) | — | — |
+| VU max | 20 | — | — |
+
+**Sortie k6 (extraits) :**
+
+```
+█ THRESHOLDS
+  http_req_duration
+  ✓ 'p(95)<800' p(95)=2.62ms
+  http_req_failed
+  ✓ 'rate<0.01' rate=0.00%
+
+█ TOTAL RESULTS
+  checks_total.......: 1854    15.19/s
+  checks_succeeded...: 100.00% 1854 out of 1854
+  ✓ status est 200
+  ✓ réponse non vide
+  http_req_duration..: avg=1.77ms med=1.69ms max=12.6ms
+  http_reqs..........: 927     7.60/s
 ```
 
 ## Scénario
@@ -44,9 +73,12 @@ k6 run -e TARGET_URL=https://<domaine-production> scripts/k6-load-test.js
 
 ## Remarque d'exécution
 
-Vercel/Netlify appliquent des limites aux fonctions serverless : un test à 20 VU
-contre la production était volontairement conservateur. Pour une vitrine locale,
-ce profil couvre largement le trafic réel. Un test à 100 VU est recommandé avant
-une campagne publicitaire.
+Le test a été exécuté **en local** contre le serveur de preview (`vite preview`),
+qui sert le build de production. Les performances mesurées (p95 = 2.62 ms, 0 %
+d'erreur) sont donc représentatives du rendu HTTP du bundle optimisé, sans le
+réseau ni le CDN. En production avec Vercel/Netlify + Cloudflare, la latence
+réseau et la gestion des fonctions serverless s'ajouteront ; relancer le même
+script avec `-e TARGET_URL=https://<domaine-production>` avant une campagne
+publicitaire afin de confirmer les seuils sur l'infrastructure réelle.
 
-*Rapport généré le 02/08/2026 — à compléter avec les métriques CI une fois k6 exécuté.*
+*Rapport mis à jour le 02/08/2026 avec les métriques réelles du run local.*
