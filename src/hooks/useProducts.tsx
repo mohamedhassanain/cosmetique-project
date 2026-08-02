@@ -32,6 +32,20 @@ function optimisticSetProducts(queryClient: QueryClientType, updater: (products:
   );
 }
 
+/**
+ * Restaure le cache après un échec de mutation.
+ * - previousProducts défini → on le remet tel quel (rollback).
+ * - previousProducts undefined → l'optimistic update a créé le cache de toutes pièces :
+ *   on le retire pour revenir à l'état « jamais chargé ».
+ */
+function rollbackProducts(queryClient: QueryClientType, previousProducts: Product[] | undefined) {
+  if (previousProducts !== undefined) {
+    queryClient.setQueryData(QUERY_KEYS.products as readonly string[], previousProducts);
+  } else {
+    queryClient.removeQueries({ queryKey: QUERY_KEYS.products as readonly string[] });
+  }
+}
+
 // ==============================
 // HOOKS DE REQUÊTE
 // ==============================
@@ -135,9 +149,7 @@ export function useCreateProduct() {
       return { previousProducts };
     },
     onError: (error: Error, _variables, context) => {
-      if (context?.previousProducts) {
-        queryClient.setQueryData(QUERY_KEYS.products as readonly string[], context.previousProducts);
-      }
+      rollbackProducts(queryClient, context?.previousProducts);
       toast.error(`Erreur: ${error.message}`);
     },
     onSettled: () => {
@@ -179,9 +191,7 @@ export function useUpdateProduct() {
       return { previousProducts };
     },
     onError: (error: Error, _variables, context) => {
-      if (context?.previousProducts) {
-        queryClient.setQueryData(QUERY_KEYS.products as readonly string[], context.previousProducts);
-      }
+      rollbackProducts(queryClient, context?.previousProducts);
       toast.error(`Erreur: ${error.message}`);
     },
     onSettled: () => {
@@ -208,9 +218,7 @@ export function useDeleteProduct() {
       return { previousProducts };
     },
     onError: (error: Error, _variables, context) => {
-      if (context?.previousProducts) {
-        queryClient.setQueryData(QUERY_KEYS.products as readonly string[], context.previousProducts);
-      }
+      rollbackProducts(queryClient, context?.previousProducts);
       toast.error(`Erreur: ${error.message}`);
     },
     onSettled: () => {
