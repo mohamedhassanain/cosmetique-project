@@ -1,0 +1,24 @@
+# Netlify — Détection de bots par User-Agent impossible via rewrite simple.
+# Deux options pour le partage social sur Netlify :
+#   1. Edge Function (netlify/edge-functions/robots.ts) qui interroge le User-Agent
+#      et répond avec le HTML prérédé pour /produit/:slug.
+#   2. Servir le HTML prérédé à tout le monde (SEO garanti, redirection navigateur
+#      incluse dans le HTML via <meta http-equiv="refresh">).
+#
+# Config minimale ici : SPAserve par défaut (option 2 pragmatique pour le MVP).
+# Le dossier dist/ contient index.html (SPA) + prerendered/ (SEO).
+
+[build]
+  command = "npm run build && npm run prerender"
+  publish = "dist"
+
+[[redirects]]
+  from = "/produit/*"
+  to = "/prerendered/produit/:splat/index.html"
+  status = 200
+  force = true
+
+  # Ordre : Netlify veut des règles plus spécifiques d'abord.
+  # Le redirect ci-dessus sert le HTML SEO ; les navigateurs sont redirigés
+  # vers l'app par le <meta http-equiv="refresh"> du fichier statique.
+  # Pour limiter aux bots, ajouter une Edge Function Netlify (voir README).
