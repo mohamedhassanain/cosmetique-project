@@ -53,7 +53,12 @@ Pouvez-vous confirmer la disponibilité?`;
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="outline" size="icon" className="relative rounded-full h-12 w-12 shadow-lg border-2 border-pink-100 bg-white hover:bg-pink-50">
+        <Button
+          variant="outline"
+          size="icon"
+          className="relative rounded-full h-12 w-12 shadow-lg border-2 border-pink-100 bg-white hover:bg-pink-50"
+          aria-label="Ouvrir le panier"
+        >
           <ShoppingCart className="h-6 w-6 text-pink-500" />
           {totalItems > 0 && (
             <Badge className="absolute -top-2 -right-2 h-6 w-6 flex items-center justify-center p-0 bg-pink-400 text-white rounded-full border-2 border-white animate-in zoom-in">
