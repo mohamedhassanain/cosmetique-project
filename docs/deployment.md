@@ -88,12 +88,15 @@ Sentry est **implémenté** (`src/integrations/sentry.ts`, initialisé dans `mai
 - Trace des performances échantillonnée à 10 %, session replay uniquement sur erreur.
 - Les erreurs de mutation React Query et les erreurs React (`ErrorBoundary`) remontent avec le contexte.
 
-Pour activer :
+Le DSN est déjà configuré dans `.env` (fichier local, gitignoré) :
 
-1. Créer un projet Sentry (https://sentry.io).
-2. Récupérer le **DSN** (Settings → Client Keys (DSN)).
-3. L'ajouter dans l'environnement de production (Vercel → Settings → Environment Variables) :
-   `VITE_SENTRY_DSN=https://<clé>@o<org>.ingest.sentry.io/<project>`
-   (+ éventuellement `VITE_SENTRY_ENVIRONMENT=production` et `VITE_COMMIT_SHA`).
-4. Redéployer. Les premières erreurs apparaissent dans Sentry sous quelques minutes.
-5. Outil de charge : `scripts/k6-load-test.js` (k6 non requis en dev ; voir `docs/load-test-results.md`).
+```
+VITE_SENTRY_DSN=https://6769946aaba8d3325e22de4e155ea422@o4511841426800640.ingest.de.sentry.io/4511841433747536
+VITE_SENTRY_ENVIRONMENT=production
+```
+
+Pour la **production** (Vercel/Netlify), copier ces deux variables dans
+Settings → Environment Variables et redéployer. Les premières erreurs apparaissent
+dans Sentry (projet `mohamed-hassanain`) sous quelques minutes.
+
+Outil de charge : `scripts/k6-load-test.js` (voir `docs/load-test-results.md`).
