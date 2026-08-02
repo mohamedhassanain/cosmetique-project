@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Plus, Search, ArrowLeft, Edit, Trash2, Package, EyeOff, Sparkles, Tag, FolderOpen, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
+import { parseImages } from '@/services/whatsapp.service';
 
 export default function AdminProducts() {
   const { user, loading: authLoading } = useAuth();
@@ -95,7 +96,7 @@ export default function AdminProducts() {
 
         <div className="space-y-4">
           {filtered.map(p => {
-            const displayImg = p.image_url;
+            const displayImg = parseImages(p.image_url)[0] ?? null;
             return (
               <Card key={p.id} className="border-pink-100 hover:shadow-md transition-all">
                 <CardContent className="p-4">
