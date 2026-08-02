@@ -3,9 +3,13 @@ import { Bug } from 'lucide-react';
 /**
  * Bouton de test Sentry (onboarding) : déclenche volontairement une erreur
  * JavaScript pour vérifier que le monitoring remonte bien l'événement.
- * À retirer une fois la vérification effectuée en production.
+ *
+ * ⚠️ Réservé au développement : invisible en production (`import.meta.env.PROD`),
+ * il ne doit jamais être affiché aux clients.
  */
 export function SentryTestButton() {
+  if (import.meta.env.PROD) return null;
+
   return (
     <button
       type="button"
