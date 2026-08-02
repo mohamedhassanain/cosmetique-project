@@ -83,5 +83,17 @@ curl -sI "https://votre-domaine.fr/produits" -H "User-Agent: Mozilla/5.0"
 
 ## 6. Monitoring
 
-- [ ] Sentry (ou équivalent) branché : erreurs React (`ErrorBoundary`) + erreurs de mutation React Query.
-      (cf. Phase 7 — ce point est un TODO si non implémenté).
+Sentry est **implémenté** (`src/integrations/sentry.ts`, initialisé dans `main.tsx`) :
+- No-op automatique si `VITE_SENTRY_DSN` est absent/vide → sans risque en dev.
+- Trace des performances échantillonnée à 10 %, session replay uniquement sur erreur.
+- Les erreurs de mutation React Query et les erreurs React (`ErrorBoundary`) remontent avec le contexte.
+
+Pour activer :
+
+1. Créer un projet Sentry (https://sentry.io).
+2. Récupérer le **DSN** (Settings → Client Keys (DSN)).
+3. L'ajouter dans l'environnement de production (Vercel → Settings → Environment Variables) :
+   `VITE_SENTRY_DSN=https://<clé>@o<org>.ingest.sentry.io/<project>`
+   (+ éventuellement `VITE_SENTRY_ENVIRONMENT=production` et `VITE_COMMIT_SHA`).
+4. Redéployer. Les premières erreurs apparaissent dans Sentry sous quelques minutes.
+5. Outil de charge : `scripts/k6-load-test.js` (k6 non requis en dev ; voir `docs/load-test-results.md`).
