@@ -10,6 +10,7 @@ import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { CartProvider } from "@/providers/cart-provider";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { FaviconUpdater } from "@/components/shared/FaviconUpdater";
+import { SentryTestButton } from "@/components/shared/SentryTestButton";
 import Index from "./pages/shop/Index";
 
 // Code splitting — chaque page est chargée uniquement quand on y navigue
@@ -41,8 +42,9 @@ const App = () => (
           <Toaster />
           <Sonner />
           <FaviconUpdater />
-          <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <BrowserRouter>
             <div className="min-h-screen pb-16 md:pb-0">
+              <SentryTestButton />
               <ErrorBoundary>
                 <Suspense fallback={<PageLoader />}>
                   <Routes>
