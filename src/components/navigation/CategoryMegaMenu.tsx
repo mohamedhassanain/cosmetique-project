@@ -265,10 +265,12 @@ function MobileDrawer({
 
   return (
     <div className="fixed inset-0 z-50 flex">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+      {/* Backdrop — bouton natif : accessible au clavier et aux lecteurs d'écran */}
+      <button
+        type="button"
+        aria-label="Fermer le menu"
         onClick={onClose}
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm cursor-default"
       />
 
       {/* Drawer */}

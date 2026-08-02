@@ -94,12 +94,12 @@ export default function AdminOrders() {
                       {editingId === order.id ? (
                         <>
                           <div className="space-y-1 col-span-2">
-                            <label className="text-xs text-pink-400">Client</label>
-                            <Input value={editName} onChange={e => setEditName(e.target.value)} className="border-pink-200 h-8 text-sm" />
+                            <label htmlFor="edit-order-name" className="text-xs text-pink-400">Client</label>
+                            <Input id="edit-order-name" value={editName} onChange={e => setEditName(e.target.value)} className="border-pink-200 h-8 text-sm" />
                           </div>
                           <div className="space-y-1">
-                            <label className="text-xs text-pink-400">Téléphone</label>
-                            <Input value={editPhone} onChange={e => setEditPhone(e.target.value)} className="border-pink-200 h-8 text-sm" />
+                            <label htmlFor="edit-order-phone" className="text-xs text-pink-400">Téléphone</label>
+                            <Input id="edit-order-phone" value={editPhone} onChange={e => setEditPhone(e.target.value)} className="border-pink-200 h-8 text-sm" />
                           </div>
                         </>
                       ) : (

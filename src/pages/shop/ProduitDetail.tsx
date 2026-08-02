@@ -265,8 +265,15 @@ export default function ProduitDetail() {
 
       {/* Navigation Choice Dialog */}
       {showNavChoice && (
-        <div className="fixed inset-0 bg-black/40 z-[100] flex items-center justify-center p-4" onClick={() => setShowNavChoice(false)}>
-          <div className="bg-white rounded-3xl p-6 max-w-sm w-full space-y-4 shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/40 z-[100] flex items-center justify-center p-4" role="presentation">
+          {/* Backdrop cliquable — bouton natif accessible au clavier */}
+          <button
+            type="button"
+            aria-label="Fermer la boîte de navigation"
+            onClick={() => setShowNavChoice(false)}
+            className="absolute inset-0 bg-black/40 cursor-default"
+          />
+          <div className="bg-white rounded-3xl p-6 max-w-sm w-full space-y-4 shadow-2xl">
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-pink-900 text-lg">Naviguer vers</h3>
               <button onClick={() => setShowNavChoice(false)} className="text-pink-400 hover:text-pink-600">

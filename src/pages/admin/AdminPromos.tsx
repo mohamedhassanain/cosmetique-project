@@ -189,10 +189,11 @@ export default function AdminPromos() {
                 <div className="space-y-2"><Label>Lien</Label><Input value={form.link} onChange={e => setForm(f => ({ ...f, link: e.target.value }))} placeholder="/produits?promotions=true" className="border-pink-200" /></div>
 
                 <div className="flex items-end">
-                  <label className="flex items-center gap-2 pb-2 cursor-pointer">
+                  {/* Pas de <label> HTML ici : le switch Radix porte déjà un aria-label explicite. */}
+                  <span className="flex items-center gap-2 pb-2">
                     <Switch checked={form.is_active} onCheckedChange={v => setForm(f => ({ ...f, is_active: v }))} aria-label="Activer la publicité" />
                     <span className="text-sm text-pink-700">Active</span>
-                  </label>
+                  </span>
                 </div>
 
                 <div className="flex gap-3">

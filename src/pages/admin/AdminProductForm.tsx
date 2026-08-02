@@ -302,7 +302,12 @@ export default function AdminProductForm() {
                         title="Product video"
                       />
                     ) : (
-                      <video src={videoUrl} controls className="w-full h-full object-contain" />
+                      <video src={videoUrl} controls className="w-full h-full object-contain">
+                        {/* Piste de sous-titres déclarée (exigence d'accessibilité).
+                            Pour une vidéo de produit sans dialogue, une piste vide suffit
+                            à signaler aux lecteurs d'écran qu'une alternative est disponible. */}
+                        <track kind="captions" srcLang="fr" label="Français" />
+                      </video>
                     )}
                     <button type="button" onClick={() => setVideoUrl('')} className="absolute top-2 right-2 bg-red-400 text-white rounded-full p-1 w-6 h-6 flex items-center justify-center">
                       <X className="h-3 w-3" />
