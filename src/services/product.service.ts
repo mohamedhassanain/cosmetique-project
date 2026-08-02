@@ -46,6 +46,28 @@ export interface PublicProductsResult {
   page: number;
 }
 
+/** Limite haute de pageSize pour protéger l'API d'un paramètre abusif. */
+export const MAX_PAGE_SIZE = 100;
+
+/**
+ * Nettoie un terme de recherche avant insertion dans un filtre PostgREST `.or()`.
+ *
+ * La syntaxe `.or()` utilise `,` pour séparer les conditions, `()` pour les groupes
+ * logiques, `*` et `%` pour les wildcards, `"` pour les valeurs littérales.
+ * Ces caractères sont neutralisés (remplacés par un espace) pour empêcher toute
+ * tentative d'injection de filtre, ex: `a,is_active.eq.false` ou `x)or(is_active.eq.true`.
+ *
+ * @returns Le terme nettoyé, sans caractères spéciaux PostgREST, au plus 80 caractères.
+ */
+export function sanitizeSearchTerm(term: string): string {
+  return term
+    // Le point est aussi un séparateur de syntaxe PostgREST (colonne.opérateur.valeur).
+    .replace(/[.,()%*"=<>;']/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 80);
+}
+
 const PRODUCT_SELECT_ADMIN = `
   id, name, slug, description, ingredients, how_to_use,
   price, original_price, is_promotion, is_featured, is_active,
@@ -101,6 +123,9 @@ export async function fetchPublicProducts(filters: ProductFilters = {}): Promise
     pageSize = 16,
   } = filters;
 
+  // pageSize est borné [1, MAX_PAGE_SIZE] : impossible de demander un volume abusif.
+  const safePageSize = Math.min(Math.max(pageSize, 1), MAX_PAGE_SIZE);
+
   let categoryId: string | null = null;
   if (category_slug) {
     const { data: cat } = await supabase
@@ -134,8 +159,10 @@ export async function fetchPublicProducts(filters: ProductFilters = {}): Promise
   if (promo) query = query.eq('is_promotion', true);
   if (featuredFilter) query = query.eq('is_featured', true);
 
-  if (search.trim()) {
-    const term = search.trim();
+  // Le terme est sanitizé avant d'entrer dans le filtre `.or()` PostgREST :
+  // toute tentative d'injection de condition supplémentaire est neutralisée.
+  const term = sanitizeSearchTerm(search);
+  if (term) {
     query = query.or(
       `search_vector.phfts.${term},` +
       `name.ilike.%${term}%,` +
@@ -147,8 +174,8 @@ export async function fetchPublicProducts(filters: ProductFilters = {}): Promise
   else if (sort === 'price-desc') query = query.order('price', { ascending: false });
   else query = query.order('created_at', { ascending: false });
 
-  const from = (page - 1) * pageSize;
-  query = query.range(from, from + pageSize - 1);
+  const from = (page - 1) * safePageSize;
+  query = query.range(from, from + safePageSize - 1);
 
   const { data, error, count } = await query;
   if (error) throw error;
@@ -156,7 +183,7 @@ export async function fetchPublicProducts(filters: ProductFilters = {}): Promise
   return {
     products: (data || []) as unknown as Product[],
     total: count || 0,
-    totalPages: Math.ceil((count || 0) / pageSize),
+    totalPages: Math.ceil((count || 0) / safePageSize),
     page,
   };
 }

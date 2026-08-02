@@ -30,29 +30,19 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 );
 
 -- ═══════════════════════════════════════════════════════════════
--- NOTE DE MIGRATION RBAC (à faire plus tard, volontairement pas
--- appliquée ici pour ne rien casser) :
---
--- Le jour où vous voulez distinguer les rôles dans les policies,
--- remplacez `auth.role() = 'authenticated'` par un check sur la
--- ligne profiles. Exemple pour orders (SELECT/UPDATE/DELETE réservés
--- aux vrais admins) :
---
---   CREATE OR REPLACE FUNCTION public.is_admin()
---   RETURNS BOOLEAN AS $$
---   SELECT EXISTS (
---     SELECT 1 FROM public.profiles
---     WHERE user_id = auth.uid() AND role = 'admin'
---   );
---   $$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public;
---
---   DROP POLICY IF EXISTS "orders_admin_select" ON public.orders;
---   CREATE POLICY "orders_admin_select" ON public.orders
---     FOR SELECT USING (public.is_admin());
---
--- Puis répéter pour chaque policy `*_admin_*`. Le trigger
--- handle_new_user() insère déjà le rôle par défaut ('admin').
+-- RBAC : les policies `*_admin_*` vérifient désormais le rôle
+-- dans public.profiles via public.is_admin() au lieu de
+-- auth.role() = 'authenticated'. Un compte authentifié qui n'a
+-- pas le rôle 'admin' ne peut plus lire/écrire les données admin.
+-- Le trigger handle_new_user() insère role = 'admin' par défaut.
 -- ═══════════════════════════════════════════════════════════════
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN AS $$
+SELECT EXISTS (
+  SELECT 1 FROM public.profiles
+  WHERE user_id = auth.uid() AND role = 'admin'
+);
+$$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public;
 
 -- =====================================================
 -- CATEGORIES
@@ -359,31 +349,31 @@ DROP POLICY IF EXISTS "categories_public_select" ON public.categories;
 CREATE POLICY "categories_public_select" ON public.categories FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "categories_admin_manage" ON public.categories;
-CREATE POLICY "categories_admin_manage" ON public.categories FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "categories_admin_manage" ON public.categories FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
 
 -- subcategories
 DROP POLICY IF EXISTS "subcategories_public_select" ON public.subcategories;
 CREATE POLICY "subcategories_public_select" ON public.subcategories FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "subcategories_admin_manage" ON public.subcategories;
-CREATE POLICY "subcategories_admin_manage" ON public.subcategories FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "subcategories_admin_manage" ON public.subcategories FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
 
 -- products
 DROP POLICY IF EXISTS "products_public_select" ON public.products;
 CREATE POLICY "products_public_select" ON public.products FOR SELECT USING (is_active = true);
 
 DROP POLICY IF EXISTS "products_admin_select_all" ON public.products;
-CREATE POLICY "products_admin_select_all" ON public.products FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "products_admin_select_all" ON public.products FOR SELECT USING (public.is_admin());
 
 DROP POLICY IF EXISTS "products_admin_manage" ON public.products;
-CREATE POLICY "products_admin_manage" ON public.products FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "products_admin_manage" ON public.products FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
 
 -- product_images
 DROP POLICY IF EXISTS "product_images_public_select" ON public.product_images;
 CREATE POLICY "product_images_public_select" ON public.product_images FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "product_images_admin_manage" ON public.product_images;
-CREATE POLICY "product_images_admin_manage" ON public.product_images FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "product_images_admin_manage" ON public.product_images FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
 
 -- orders
 -- ⚠️ INSERT est OUVERT au public : les commandes WhatsApp sont créées par des
@@ -396,37 +386,37 @@ DROP POLICY IF EXISTS "orders_insert_public" ON public.orders;
 CREATE POLICY "orders_insert_public" ON public.orders FOR INSERT WITH CHECK (true);
 
 DROP POLICY IF EXISTS "orders_admin_select" ON public.orders;
-CREATE POLICY "orders_admin_select" ON public.orders FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "orders_admin_select" ON public.orders FOR SELECT USING (public.is_admin());
 
 DROP POLICY IF EXISTS "orders_admin_update" ON public.orders;
-CREATE POLICY "orders_admin_update" ON public.orders FOR UPDATE USING (auth.role() = 'authenticated');
+CREATE POLICY "orders_admin_update" ON public.orders FOR UPDATE USING (public.is_admin());
 
 DROP POLICY IF EXISTS "orders_admin_delete" ON public.orders;
-CREATE POLICY "orders_admin_delete" ON public.orders FOR DELETE USING (auth.role() = 'authenticated');
+CREATE POLICY "orders_admin_delete" ON public.orders FOR DELETE USING (public.is_admin());
 
 -- contact_messages
 DROP POLICY IF EXISTS "contact_messages_insert_public" ON public.contact_messages;
 CREATE POLICY "contact_messages_insert_public" ON public.contact_messages FOR INSERT WITH CHECK (true);
 
 DROP POLICY IF EXISTS "contact_messages_admin_select" ON public.contact_messages;
-CREATE POLICY "contact_messages_admin_select" ON public.contact_messages FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "contact_messages_admin_select" ON public.contact_messages FOR SELECT USING (public.is_admin());
 
 -- site_settings
 DROP POLICY IF EXISTS "site_settings_public_select" ON public.site_settings;
 CREATE POLICY "site_settings_public_select" ON public.site_settings FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "site_settings_admin_manage" ON public.site_settings;
-CREATE POLICY "site_settings_admin_manage" ON public.site_settings FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "site_settings_admin_manage" ON public.site_settings FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
 
 -- promos
 DROP POLICY IF EXISTS "promos_public_select" ON public.promos;
 CREATE POLICY "promos_public_select" ON public.promos FOR SELECT USING (is_active = true);
 
 DROP POLICY IF EXISTS "promos_admin_select_all" ON public.promos;
-CREATE POLICY "promos_admin_select_all" ON public.promos FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "promos_admin_select_all" ON public.promos FOR SELECT USING (public.is_admin());
 
 DROP POLICY IF EXISTS "promos_admin_manage" ON public.promos;
-CREATE POLICY "promos_admin_manage" ON public.promos FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "promos_admin_manage" ON public.promos FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
 
 -- storage
 DROP POLICY IF EXISTS "images_public_select" ON storage.objects;

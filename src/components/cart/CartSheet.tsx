@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { useCart } from '@/hooks/cart-utils';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
@@ -11,9 +12,13 @@ import { supabase } from '@/integrations/supabase/client';
 export function CartSheet() {
   const { items, totalItems, totalPrice, updateQuantity, removeFromCart, clearCart } = useCart();
   const { settings } = useSiteSettings();
+  // Verrou anti-double-clic : le clic sur "Commander" passe par un INSERT
+  // `orders` public — on évite tout doublon en cas de clics multiples rapides.
+  const orderLockRef = useRef(false);
 
   const handleWhatsAppOrder = async () => {
-    if (items.length === 0) return;
+    if (items.length === 0 || orderLockRef.current) return;
+    orderLockRef.current = true;
     const whatsappNumber = settings?.whatsapp_number || '+212600000000';
 
     // Save order to database for admin
@@ -42,6 +47,7 @@ Pouvez-vous confirmer la disponibilité?`;
     const whatsappUrl = `https://wa.me/${formatWhatsAppNumber(whatsappNumber)}?text=${encodeURIComponent(message)}`;
     globalThis.open(whatsappUrl, '_blank');
     clearCart();
+    orderLockRef.current = false;
   };
 
   return (

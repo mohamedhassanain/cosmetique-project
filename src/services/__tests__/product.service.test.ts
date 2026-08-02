@@ -4,6 +4,8 @@ import {
   createProduct,
   updateProduct,
   fetchPublicProducts,
+  sanitizeSearchTerm,
+  MAX_PAGE_SIZE,
 } from '../product.service';
 
 // Mock du client Supabase
@@ -120,7 +122,47 @@ describe('product.service', () => {
     });
   });
 
+  describe('sanitizeSearchTerm', () => {
+    it('neutralise la syntaxe de filtre PostgREST', () => {
+      // Tentative d'injection : `a` puis `is_active.eq.false` séparé par une virgule
+      const injected = sanitizeSearchTerm('a,is_active.eq.false');
+      // Aucun séparateur de syntaxe PostgREST ne subsiste :
+      // plus de condition supplémentaire possible (`,`) ni de structure colonne.op.valeur (`.`).
+      expect(injected).not.toMatch(/[.,()%*"=<>;']/);
+      // Le reste est un texte de recherche inoffensif, mots séparés par des espaces.
+      expect(injected).toBe('a is_active eq false');
+    });
+
+    it('neutralise parenthèses, guillemets, pourcent, wildcards et opérateurs', () => {
+      const term = sanitizeSearchTerm('x)or(is_active.eq.true)%"*;=<>');
+      expect(term).not.toMatch(/[(),%*"=<>;']/);
+    });
+
+    it('conserve les mots simples et normalise les espaces', () => {
+      expect(sanitizeSearchTerm('  creme   visage  ')).toBe('creme visage');
+    });
+
+    it('borne la longueur du terme', () => {
+      const long = 'a'.repeat(500);
+      expect(sanitizeSearchTerm(long).length).toBeLessThanOrEqual(80);
+    });
+
+    it('retourne une chaîne vide si le terme ne contient que des caractères dangereux', () => {
+      expect(sanitizeSearchTerm(',()%')).toBe('');
+    });
+  });
+
   describe('fetchPublicProducts', () => {
+    it('range pageSize à MAX_PAGE_SIZE', async () => {
+      mockedFrom.mockReturnValueOnce(createBuilder({ data: [], error: null, count: 0 }));
+
+      await fetchPublicProducts({ page: 1, pageSize: 9999 });
+
+      const builder = mockedFrom.mock.results[0].value as Record<string, ReturnType<typeof vi.fn>>;
+      // range(from, from + safePageSize - 1) avec safePageSize = 100
+      expect(builder.range).toHaveBeenCalledWith(0, MAX_PAGE_SIZE - 1);
+    });
+
     it('applique les filtres combinés (catégorie + promo)', async () => {
       mockedFrom
         .mockReturnValueOnce(createBuilder({ data: { id: 'cat-1' }, error: null }))
