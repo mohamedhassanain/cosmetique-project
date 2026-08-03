@@ -11,6 +11,7 @@ import { CartProvider } from "@/providers/cart-provider";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { FaviconUpdater } from "@/components/shared/FaviconUpdater";
 import { SentryTestButton } from "@/components/shared/SentryTestButton";
+import { SentryFeedbackButton } from "@/components/shared/SentryFeedbackButton";
 import Index from "./pages/shop/Index";
 
 // Code splitting — chaque page est chargée uniquement quand on y navigue
@@ -45,6 +46,7 @@ const App = () => (
           <BrowserRouter>
             <div className="min-h-screen pb-16 md:pb-0">
               <SentryTestButton />
+              <SentryFeedbackButton />
               <ErrorBoundary>
                 <Suspense fallback={<PageLoader />}>
                   <Routes>
