@@ -2,8 +2,11 @@ import { useState } from 'react';
 import { SentryFeedbackDialog } from './SentryFeedbackDialog';
 
 /**
- * Bouton flottant « Signaler un problème » — visible sur toutes les pages,
+ * Bouton flottant « Signaler un problème » — visible sur desktop (md+),
  * reste à l'écran pendant le scroll.
+ *
+ * Sur mobile, le signalement est intégré à la BottomNav (Accueil / Produits / Signaler) ;
+ * ce flottant est donc masqué sur mobile (`hidden md:inline-flex`) pour éviter le doublon.
  *
  * Au clic, ouvre `SentryFeedbackDialog` : formulaire de signalement avec
  * pièces jointes (images/vidéos depuis le local), envoyé via le SDK officiel
@@ -25,9 +28,10 @@ export function SentryFeedbackButton() {
         title="Signaler un problème"
         className={[
           // Position : en bas à droite, à gauche du panier flottant (ne se chevauchent pas).
-          'fixed z-40 bottom-20 md:bottom-6 right-24',
+          'fixed z-40 bottom-6 right-24',
+          // Mobile : le bouton vit dans la BottomNav → flottant visible uniquement sur desktop.
+          'hidden md:inline-flex items-center gap-2 rounded-full',
           // Apparence : pilule rose, bordure, ombre légère, très arrondie.
-          'inline-flex items-center gap-2 rounded-full',
           'bg-white/95 backdrop-blur border-2 border-pink-200',
           'px-3.5 py-2 shadow-lg shadow-pink-200/40',
           'hover:bg-pink-50 hover:border-pink-400 hover:-translate-y-0.5',
@@ -41,7 +45,7 @@ export function SentryFeedbackButton() {
         <span aria-hidden="true" className="text-base leading-none">
           🐞
         </span>
-        <span className="hidden sm:inline text-sm font-semibold text-pink-700">
+        <span className="inline text-sm font-semibold text-pink-700">
           Signaler un problème
         </span>
       </button>
