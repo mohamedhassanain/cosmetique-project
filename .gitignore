@@ -35,3 +35,9 @@ playwright-report/
 
 # Supabase CLI temporaire
 supabase/.temp/
+
+# Playwright
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/

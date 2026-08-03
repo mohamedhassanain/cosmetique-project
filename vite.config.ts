@@ -15,6 +15,31 @@ export default defineConfig(() => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // Code splitting : isole les grosse bibliothèques du bundle principal.
+        // Chaque vendor devient un chunk séparé (mis en cache par le navigateur),
+        // ce qui supprime le warning « chunk larger than 500 kB ».
+        manualChunks(id: string) {
+          if (!id.includes("node_modules")) return undefined;
+          if (id.includes("react-router")) return "react-router";
+          if (id.includes("@supabase")) return "supabase";
+          if (id.includes("@radix-ui")) return "radix-ui";
+          if (id.includes("@tanstack")) return "tanstack-query";
+          if (id.includes("@sentry")) return "sentry";
+          if (
+            id.includes("/react/") ||
+            id.includes("/react-dom/") ||
+            id.includes("/scheduler/")
+          ) {
+            return "react-core";
+          }
+          return undefined;
+        },
+      },
+    },
+  },
   test: {
     globals: true,
     environment: 'jsdom',
