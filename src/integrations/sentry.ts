@@ -1,32 +1,8 @@
 import * as Sentry from '@sentry/react';
 
-/** Thème clair du widget de signalement — cohérent avec Kissariya (rose poudré). */
-const FEEDBACK_THEME_LIGHT = {
-  accentBackground: '#f472b6',
-  accentForeground: '#ffffff',
-  foreground: '#831843',
-  background: '#ffffff',
-  successColor: '#16a34a',
-  errorColor: '#dc2626',
-  boxShadow: '0 10px 25px -5px rgb(236 72 153 / 0.25)',
-  outline: '2px solid #f9a8d4',
-};
-
-/** Variante sombre du thème (accent conservé, fond foncé). */
-const FEEDBACK_THEME_DARK = {
-  accentBackground: '#f472b6',
-  accentForeground: '#ffffff',
-  foreground: '#fdf2f8',
-  background: '#1f1420',
-  successColor: '#4ade80',
-  errorColor: '#f87171',
-  boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.5)',
-  outline: '2px solid #9d174d',
-};
-
 /**
  * Configure Sentry pour le monitoring des erreurs, logs, métriques,
- * session replay, tracing et le widget User Feedback officiel.
+ * session replay et tracing.
  *
  * - No-op total si le DSN n'est pas défini (dev / build sans variable).
  * - `tracesSampleRate: 1.0` en dev pour attraper toutes les transactions,
@@ -34,11 +10,9 @@ const FEEDBACK_THEME_DARK = {
  * - `tracePropagationTargets` limite le tracing distribué aux appels locaux
  *   (le site static n'a pas d'API backend propre).
  *
- * User Feedback : le widget officiel est branché via `feedbackAsyncIntegration`
- * (chargement paresseux du code au premier clic). Le bouton flottant
- * (`SentryFeedbackButton`) appelle `openSentryFeedback` — toutes les données
- * partent exclusivement vers Sentry, aucune écriture Supabase. Si Session
- * Replay est actif, le feedback est automatiquement lié à la session par le SDK.
+ * Le signalement utilisateur (« Signaler un problème ») est géré dans
+ * `sendSentryFeedback` : formulaire custom mais envoi via le SDK officiel
+ * (`captureFeedback` + attachments), exclusivement vers Sentry.
  */
 export function initSentry() {
   const dsn = import.meta.env.VITE_SENTRY_DSN as string | undefined;
@@ -55,16 +29,6 @@ export function initSentry() {
     integrations: [
       Sentry.browserTracingIntegration(),
       Sentry.replayIntegration(),
-      // Widget officiel Sentry User Feedback — chargé paresseusement.
-      // autoInject false : pas de bouton acteur par défaut, on ouvre le
-      // formulaire à la demande depuis notre bouton flottant.
-      Sentry.feedbackAsyncIntegration({
-        colorScheme: 'system',
-        autoInject: false,
-        // Thème Kissariya (rose poudré) pour le widget de signalement.
-        themeLight: FEEDBACK_THEME_LIGHT,
-        themeDark: FEEDBACK_THEME_DARK,
-      }),
     ],
 
     // Tracing: 100% en dev, 10% en production (équilibre coût/utilité)
@@ -88,56 +52,58 @@ export interface SentryFeedbackCallbacks {
 }
 
 /**
- * Ouvre le formulaire officiel Sentry User Feedback (modale).
- *
- * Le code du widget est chargé paresseusement au premier appel, puis le formulaire
- * est inséré dans le DOM et ouvert. Les données (description, email, nom) sont
- * envoyées **uniquement** vers Sentry.
- *
- * @returns Une promesse résolue une fois le formulaire ouvert.
+ * Convertit un fichier local (image/vidéo) en pièce jointe Sentry.
+ * Les données sont envoyées **uniquement** vers Sentry (attachement
+ * d'événement) — aucune écriture Supabase.
  */
-export async function openSentryFeedback(callbacks: SentryFeedbackCallbacks = {}): Promise<void> {
-  if (typeof document === 'undefined') return;
-
-  const widget = Sentry.getFeedback();
-  if (!widget) return;
-
-  try {
-    const dialog = await widget.createForm({
-      // Général
-      colorScheme: 'system',
-      showBranding: false,
-      // Textes (français, cohérents avec l'app)
-      formTitle: 'Signaler un problème',
-      messageLabel: 'Décrivez le problème rencontré',
-      messagePlaceholder: "Ex. : la page ne charge pas, une image ne s'affiche pas…",
-      nameLabel: 'Votre nom (optionnel)',
-      namePlaceholder: 'Votre nom',
-      emailLabel: 'Votre email (optionnel)',
-      emailPlaceholder: 'vous@exemple.com',
-      submitButtonLabel: 'Envoyer le signalement',
-      cancelButtonLabel: 'Annuler',
-      successMessageText: 'Merci pour votre retour !',
-      // Le thème suit le colorScheme système (défini à l'init de l'intégration).
-      // Callbacks
-      onSubmitSuccess: () => callbacks.onSubmitted?.(),
-      onSubmitError: () => callbacks.onError?.(),
-    });
-
-
-    dialog.appendToDom();
-    dialog.open();
-  } catch (error) {
-    // Le lazy-load peut échouer (réseau, ad-blocker…) — le site ne doit pas se bloquer.
-    console.error("Impossible d'ouvrir le formulaire de signalement Sentry:", error);
-  }
+async function fileToSentryAttachment(file: File): Promise<{ data: Uint8Array; filename: string; contentType: string }> {
+  const data = new Uint8Array(await file.arrayBuffer());
+  return {
+    data,
+    filename: file.name,
+    contentType: file.type || 'application/octet-stream',
+  };
 }
 
 /**
- * Supprime le widget feedback du DOM courant, s'il existe.
- * À appeler au démontage du bouton flottant pour éviter toute fuite de listeners.
+ * Envoie un signalement utilisateur à Sentry avec pièces jointes optionnelles
+ * (images/vidéos chargées depuis le local).
+ *
+ * Cette fonction implémente le pattern officiel « Bring Your Own Widget »
+ * documenté par Sentry (`captureFeedback` + `attachments`) : le formulaire
+ * est custom mais les données passent par le SDK officiel, exclusivement vers
+ * Sentry. URL, browser, OS, release et timestamp sont ajoutés par le SDK.
+ *
+ * @returns L'eventId Sentry en cas de succès.
  */
-export function removeSentryFeedback(): void {
-  const widget = Sentry.getFeedback();
-  widget?.remove();
+export async function sendSentryFeedback(
+  input: { message: string; name?: string; email?: string; attachments?: File[] },
+  callbacks?: SentryFeedbackCallbacks
+): Promise<string> {
+  try {
+    const attachments = await Promise.all(
+      (input.attachments ?? []).map(fileToSentryAttachment)
+    );
+
+    const hint: Parameters<typeof Sentry.captureFeedback>[1] = {
+      includeReplay: true, // lie la session replay si active
+      attachments: attachments.length > 0 ? attachments : undefined,
+    };
+
+    const eventId = Sentry.captureFeedback(
+      {
+        message: input.message,
+        name: input.name || undefined,
+        email: input.email || undefined,
+      },
+      hint
+    );
+
+    callbacks?.onSubmitted?.();
+    return eventId;
+  } catch (error) {
+    console.error('Failed to send feedback to Sentry:', error);
+    callbacks?.onError?.();
+    throw error;
+  }
 }

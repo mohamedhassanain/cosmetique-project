@@ -3,10 +3,8 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SentryFeedbackButton } from '../SentryFeedbackButton';
 
-const mockOpenFeedback = vi.fn();
-
 vi.mock('@/integrations/sentry', () => ({
-  openSentryFeedback: (...args: unknown[]) => mockOpenFeedback(...args),
+  sendSentryFeedback: vi.fn(),
 }));
 
 vi.mock('sonner', () => ({
@@ -16,7 +14,10 @@ vi.mock('sonner', () => ({
   },
 }));
 
+import { sendSentryFeedback } from '@/integrations/sentry';
 import { toast } from 'sonner';
+
+const mockedSend = vi.mocked(sendSentryFeedback);
 
 describe('SentryFeedbackButton', () => {
   beforeEach(() => {
@@ -38,42 +39,48 @@ describe('SentryFeedbackButton', () => {
     render(<SentryFeedbackButton />);
     const button = screen.getByRole('button', { name: 'Signaler un problème' });
     expect(button).toBeInTheDocument();
-    expect(button).toHaveAttribute(
-      'class',
-      expect.stringContaining('fixed')
-    );
+    expect(button).toHaveAttribute('class', expect.stringContaining('fixed'));
   });
 
-  it('ouvre le widget Sentry au clic', async () => {
-    mockOpenFeedback.mockResolvedValue(undefined);
+  it('ouvre le formulaire de signalement au clic', async () => {
     const user = userEvent.setup();
     render(<SentryFeedbackButton />);
 
     await user.click(screen.getByRole('button', { name: 'Signaler un problème' }));
 
-    expect(mockOpenFeedback).toHaveBeenCalledTimes(1);
-    expect(mockOpenFeedback).toHaveBeenCalledWith(
-      expect.objectContaining({
-        onSubmitted: expect.any(Function),
-        onError: expect.any(Function),
-      })
-    );
+    // Le dialog s'ouvre avec le formulaire complet.
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByLabelText(/Décrivez le problème rencontré/)).toBeInTheDocument();
+    expect(screen.getByText(/Ajouter une image ou une vidéo/i)).toBeInTheDocument();
   });
 
-  it('affiche le message de confirmation quand le feedback est envoyé', async () => {
-    let onSubmitted: (() => void) | undefined;
-    mockOpenFeedback.mockImplementation(
-      (callbacks: { onSubmitted?: () => void }) => {
-        onSubmitted = callbacks.onSubmitted;
-        return Promise.resolve();
-      }
-    );
+  it('affiche le message de confirmation quand le signalement est envoyé', async () => {
+    // Le mock doit déclencher le callback onSubmitted comme le vrai SDK.
+    mockedSend.mockImplementation(async (_input, callbacks) => {
+      callbacks?.onSubmitted?.();
+      return 'event-123';
+    });
     const user = userEvent.setup();
     render(<SentryFeedbackButton />);
 
     await user.click(screen.getByRole('button', { name: 'Signaler un problème' }));
-    onSubmitted?.();
 
+    // Renseigne le message (validation : 10 caractères minimum).
+    await user.type(
+      screen.getByLabelText(/Décrivez le problème rencontré/),
+      'La page produit ne charge pas les images'
+    );
+    await user.click(screen.getByRole('button', { name: 'Envoyer le signalement' }));
+
+    await waitFor(() => {
+      expect(mockedSend).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'La page produit ne charge pas les images',
+          attachments: [],
+        }),
+        expect.objectContaining({ onSubmitted: expect.any(Function) })
+      );
+    });
     await waitFor(() => {
       expect(toast.success).toHaveBeenCalledWith(
         'Merci pour votre retour. Notre équipe analysera ce problème.'
@@ -83,18 +90,24 @@ describe('SentryFeedbackButton', () => {
 
   it('affiche une erreur si l’envoi échoue', async () => {
     let onError: (() => void) | undefined;
-    mockOpenFeedback.mockImplementation(
-      (callbacks: { onError?: () => void }) => {
-        onError = callbacks.onError;
-        return Promise.resolve();
-      }
-    );
+    mockedSend.mockImplementation((_input, callbacks) => {
+      onError = callbacks?.onError;
+      return Promise.reject(new Error('réseau indisponible'));
+    });
     const user = userEvent.setup();
     render(<SentryFeedbackButton />);
 
     await user.click(screen.getByRole('button', { name: 'Signaler un problème' }));
-    onError?.();
+    await user.type(
+      screen.getByLabelText(/Décrivez le problème rencontré/),
+      'Impossible de charger la page produit'
+    );
+    await user.click(screen.getByRole('button', { name: 'Envoyer le signalement' }));
 
+    await waitFor(() => {
+      expect(onError).toBeDefined();
+    });
+    onError?.();
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith(
         "Votre signalement n'a pas pu être envoyé. Réessayez plus tard."
