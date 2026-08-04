@@ -49,11 +49,16 @@ export const ProductCard = memo(function ProductCard({ product }: Readonly<Produ
       <Link to={`/produit/${product.slug}`} {...productLinkProps}>
         <div className="aspect-square relative overflow-hidden w-full rounded-t-2xl bg-pink-50">
           {displayImage ? (
+            /* Images responsives : ajouter un srcSet/sizes ici si le plan Supabase
+               active les Image Transformations (ex: ?width=400 / 800 / 1200&quality=80). */
+            /* TODO: srcSet responsive si upgrade plan Supabase */
             <img
               src={displayImage}
               alt={product.name}
               loading="lazy"
               decoding="async"
+              width={800}
+              height={800}
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             />
           ) : (

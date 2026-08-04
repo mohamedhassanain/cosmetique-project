@@ -43,8 +43,20 @@ export function HeroPromoCarousel() {
     <div className="hidden md:block">
       <div className="relative aspect-square w-full max-w-md mx-auto rounded-[2rem] overflow-hidden bg-gradient-to-br from-pink-300 via-rose-200 to-purple-200 border-4 border-white shadow-2xl">
         {promo.image_url ? (
+          // Première promo visible dès le chargement (hero, desktop) : chargement prioritaire.
+          /* Images responsives : ajouter un srcSet/sizes ici si le plan Supabase
+             active les Image Transformations (ex: ?width=400 / 800 / 1200&quality=80). */
+          /* TODO: srcSet responsive si upgrade plan Supabase */
           <>
-            <img src={promo.image_url} alt={promo.title} className="absolute inset-0 w-full h-full object-cover" />
+            <img
+              src={promo.image_url}
+              alt={promo.title}
+              loading={index === 0 ? 'eager' : 'lazy'}
+              decoding="async"
+              width={800}
+              height={800}
+              className="absolute inset-0 w-full h-full object-cover"
+            />
             <Link to={promo.link} className="absolute inset-0" aria-label="Voir la promotion" />
           </>
         ) : (

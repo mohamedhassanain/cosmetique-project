@@ -109,7 +109,20 @@ export default function ProduitDetail() {
           <div className="space-y-4">
             <div className="relative aspect-square rounded-3xl overflow-hidden bg-white border border-pink-100">
               {currentMedia?.type === 'image' ? (
-                <img src={currentMedia.url} alt={product.name} className="w-full h-full object-cover" />
+                // L'image principale est le LCP de la page produit : chargement prioritaire.
+                /* Images responsives : ajouter un srcSet/sizes ici si le plan Supabase
+                   active les Image Transformations (ex: ?width=400 / 800 / 1200&quality=80). */
+                /* TODO: srcSet responsive si upgrade plan Supabase */
+                <img
+                  src={currentMedia.url}
+                  alt={product.name}
+                  fetchPriority="high"
+                  loading="eager"
+                  decoding="async"
+                  width={800}
+                  height={800}
+                  className="w-full h-full object-cover"
+                />
               ) : currentMedia?.type === 'video' ? (
                 currentMedia.url.includes('youtube') || currentMedia.url.includes('youtu.be') ? (
                   <iframe
@@ -157,7 +170,7 @@ export default function ProduitDetail() {
                 {mediaItems.map((item, i) => (
                   <button key={i} onClick={() => setMediaIndex(i)} className={`shrink-0 h-16 w-16 rounded-xl overflow-hidden border-2 transition-all ${i === mediaIndex ? 'border-pink-400' : 'border-transparent opacity-60'}`}>
                     {item.type === 'image' ? (
-                      <img src={item.url} alt="" className="w-full h-full object-cover" />
+                      <img src={item.url} alt="" loading="lazy" decoding="async" width={64} height={64} className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full bg-pink-100 flex items-center justify-center">
                         <Play className="h-6 w-6 text-pink-400" />

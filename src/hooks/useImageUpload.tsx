@@ -1,12 +1,13 @@
 import { useState, useCallback } from 'react';
+import imageCompression from 'browser-image-compression';
 import { uploadImage as apiUploadImage } from '@/services/storage.service';
 import { toast } from 'sonner';
 
-/** Dimension max côté long de l'image redimensionnée (préserve les proportions). */
-const MAX_IMAGE_DIMENSION = 1200;
+/** Dimension max côté long de l'image redimensionnée (sur-échantillonnée pour retina). */
+const MAX_IMAGE_DIMENSION = 1600;
 
-/** Qualité JPEG/WebP de sortie après compression (0-1). */
-const IMAGE_QUALITY = 0.8;
+/** Taille cible après compression : ~300 Ko. */
+const MAX_IMAGE_SIZE_MB = 0.3;
 
 /** Type MIME de sortie : WebP si supporté, sinon JPEG (compatible partout). */
 const OUTPUT_TYPE = 'image/webp';
@@ -14,50 +15,37 @@ const OUTPUT_TYPE = 'image/webp';
 export function isWebPSupported(): boolean {
   if (typeof document === 'undefined') return false;
   const canvas = document.createElement('canvas');
-  return canvas.toDataURL(OUTPUT_TYPE).startsWith('data:image/webp');
+  const dataUrl = canvas.toDataURL(OUTPUT_TYPE);
+  // toDataURL peut renvoyer null dans certains environnements (jsdom, tests) :
+  // on considère alors que le WebP n'est pas supporté, sans lever d'erreur.
+  return typeof dataUrl === 'string' && dataUrl.startsWith('data:image/webp');
 }
 
 /**
- * Compresse et redimensionne une image en canvas natif (aucune lib).
- * Convertit en WebP si le navigateur le supporte, sinon JPEG.
- * @throws Error si le format n'est pas décodable ou la compression échoue.
+ * Compresse et redimensionne une image via `browser-image-compression`
+ * (web worker → thread principal jamais bloqué). Réduit à ~300 Ko,
+ * max 1600px, converti en WebP si le navigateur le supporte, sinon JPEG.
+ *
+ * @returns Le fichier optimisé, avec une extension adaptée au format de sortie.
+ * @throws Error si la compression échoue (l'appelant retombe sur l'original).
  */
-async function compressImage(file: File): Promise<File> {
-  if (!file.type.startsWith('image/')) {
-    throw new Error('Fichier non valide : seules les images sont autorisées.');
-  }
-
-  const bitmap = await createImageBitmap(file);
-
-  const maxSide = Math.max(bitmap.width, bitmap.height);
-  const scale = maxSide > MAX_IMAGE_DIMENSION ? MAX_IMAGE_DIMENSION / maxSide : 1;
-
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.round(bitmap.width * scale);
-  canvas.height = Math.round(bitmap.height * scale);
-
-  const ctx = canvas.getContext('2d');
-  if (!ctx) {
-    throw new Error('Compression impossible : canvas non supporté');
-  }
-
-  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-
+export async function optimizeImage(file: File): Promise<File> {
   const useWebP = isWebPSupported();
-  const ext = useWebP ? 'webp' : 'jpeg';
   const mime = useWebP ? OUTPUT_TYPE : 'image/jpeg';
-  const blob: Blob | null = await new Promise((resolve) => {
-    canvas.toBlob(resolve, mime, IMAGE_QUALITY);
-  });
 
-  bitmap.close();
+  const options = {
+    maxWidthOrHeight: MAX_IMAGE_DIMENSION,
+    maxSizeMB: MAX_IMAGE_SIZE_MB,
+    useWebWorker: true,
+    fileType: mime,
+  };
 
-  if (!blob) {
-    throw new Error('Échec de la compression de l\'image');
-  }
+  const compressed = await imageCompression(file, options);
 
+  // L'extension du nom doit suivre le format réellement encodé.
   const baseName = file.name.replace(/\.[^.]+$/, '');
-  return new File([blob], `${baseName}.${ext}`, { type: mime });
+  const ext = useWebP ? 'webp' : 'jpeg';
+  return new File([compressed], `${baseName}.${ext}`, { type: mime });
 }
 
 export function useImageUpload() {
@@ -66,8 +54,24 @@ export function useImageUpload() {
   const uploadImage = useCallback(async (file: File, folder: string = 'products'): Promise<string | null> => {
     try {
       setUploading(true);
+
+      // Les fichiers non-image (vidéos) ne sont pas compressés. Note : storage.service.ts
+      // les rejette via assertValidImage() (comportement existant conservé — le chemin
+      // vidéo de AdminProductForm reste géré par un upload direct hors de ce hook).
+      if (!file.type.startsWith('image/')) {
+        return await apiUploadImage(file, folder);
+      }
+
       // Compression côté client pour réduire la taille envoyée à Supabase Storage.
-      const optimized = await compressImage(file);
+      // En cas d'échec, on retombe sur l'original : ne jamais bloquer l'admin.
+      let optimized = file;
+      try {
+        optimized = await optimizeImage(file);
+      } catch (compressionError) {
+        console.error('Image compression failed, uploading original:', compressionError);
+        toast.warning("L'image n'a pas pu être compressée automatiquement. Envoi du fichier original.");
+      }
+
       return await apiUploadImage(optimized, folder);
     } catch (error) {
       console.error('Upload error:', error);
