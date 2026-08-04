@@ -22,9 +22,9 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
   full_name TEXT,
   phone TEXT,
-  -- Rôle de l'utilisateur : 'admin' par défaut (pas de signup public actuellement).
-  -- Préparation RBAC : cette colonne permettra de restreindre les policies à la place de auth.role().
-  role TEXT NOT NULL DEFAULT 'admin' CHECK (role IN ('admin', 'staff')),
+  -- Un nouvel utilisateur est non privilégié par défaut.
+  -- Les administrateurs sont promus explicitement via une opération réservée.
+  role TEXT NOT NULL DEFAULT 'staff' CHECK (role IN ('admin', 'staff')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 -- dans public.profiles via public.is_admin() au lieu de
 -- auth.role() = 'authenticated'. Un compte authentifié qui n'a
 -- pas le rôle 'admin' ne peut plus lire/écrire les données admin.
--- Le trigger handle_new_user() insère role = 'admin' par défaut.
+-- Cette table est réservée aux accès back-office ; aucun profil visiteur n'est créé.
 -- ═══════════════════════════════════════════════════════════════
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS BOOLEAN AS $$
@@ -298,13 +298,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SET search_path = public;
 
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
-BEGIN
-  INSERT INTO public.profiles (user_id) VALUES (NEW.id);
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+-- CREATE TABLE IF NOT EXISTS ne modifie pas une table déjà déployée.
+-- Cette instruction applique aussi le défaut sûr aux environnements existants.
+ALTER TABLE public.profiles ALTER COLUMN role SET DEFAULT 'staff';
 
 -- =====================================================
 -- UPDATED_AT TRIGGERS (idempotent : DROP + CREATE)
@@ -328,7 +324,7 @@ DROP TRIGGER IF EXISTS trg_promos_updated_at ON public.promos;
 CREATE TRIGGER trg_promos_updated_at BEFORE UPDATE ON public.promos FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+DROP FUNCTION IF EXISTS public.handle_new_user();
 
 -- =====================================================
 -- ROW LEVEL SECURITY
@@ -346,15 +342,11 @@ ALTER TABLE public.promos ENABLE ROW LEVEL SECURITY;
 -- =====================================================
 -- RLS POLICIES (idempotent : DROP + CREATE)
 -- =====================================================
--- profiles
+-- profiles : table interne de contrôle d'accès du back-office.
+-- Aucune policy client : les visiteurs et comptes authentifiés n'y accèdent pas.
 DROP POLICY IF EXISTS "profiles_select_own" ON public.profiles;
-CREATE POLICY "profiles_select_own" ON public.profiles FOR SELECT USING (auth.uid() = user_id);
-
 DROP POLICY IF EXISTS "profiles_insert_own" ON public.profiles;
-CREATE POLICY "profiles_insert_own" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = user_id);
-
 DROP POLICY IF EXISTS "profiles_update_own" ON public.profiles;
-CREATE POLICY "profiles_update_own" ON public.profiles FOR UPDATE USING (auth.uid() = user_id);
 
 -- categories
 DROP POLICY IF EXISTS "categories_public_select" ON public.categories;
