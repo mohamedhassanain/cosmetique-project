@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/providers/auth-utils';
 import { useProducts, useDeleteProduct } from '@/hooks/useProducts';
@@ -11,17 +11,21 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Plus, Search, ArrowLeft, Edit, Trash2, Package, EyeOff, Sparkles, Tag, FolderOpen, ChevronDown } from 'lucide-react';
+import { Plus, Search, ArrowLeft, Edit, Trash2, Package, EyeOff, Sparkles, Tag, FolderOpen, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { parseImages } from '@/services/whatsapp.service';
+import type { AdminProductFilters } from '@/hooks/useProducts';
 
 export default function AdminProducts() {
   const { user, loading: authLoading } = useAuth();
-  const { products, isLoading } = useProducts();
+  const navigate = useNavigate();
   const deleteProduct = useDeleteProduct();
   const { categories, isLoading: catLoading, createCategory, updateCategory, deleteCategory } = useCategories();
-  const navigate = useNavigate();
+
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const pageSize = 20;
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [catDialogOpen, setCatDialogOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<typeof categories[0] | null>(null);
@@ -30,14 +34,26 @@ export default function AdminProducts() {
   const [deleteCatId, setDeleteCatId] = useState<string | null>(null);
   const [showCategories, setShowCategories] = useState(false);
 
+  // Debounce search input (300ms) to avoid firing a request on every keystroke.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1); // Reset to page 1 on new search
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const filters: AdminProductFilters = useMemo(() => ({
+    search: debouncedSearch,
+    page,
+    pageSize,
+  }), [debouncedSearch, page, pageSize]);
+
+  const { products, total, totalPages, currentPage, isLoading } = useProducts(filters);
+
   useEffect(() => {
     if (!authLoading && !user) navigate('/auth');
   }, [user, authLoading, navigate]);
-
-  const filtered = products.filter(p =>
-    p.name.toLowerCase().includes(search.toLowerCase()) ||
-    (p.brand || '').toLowerCase().includes(search.toLowerCase())
-  );
 
   const handleDelete = async () => {
     if (deleteId) {
@@ -80,7 +96,7 @@ export default function AdminProducts() {
           <Button variant="ghost" size="icon" asChild><Link to="/admin"><ArrowLeft className="h-5 w-5" /></Link></Button>
           <div className="flex-1">
             <h1 className="text-2xl font-display font-bold text-pink-900">Produits</h1>
-            <p className="text-pink-500">{products.length} produit(s)</p>
+            <p className="text-pink-500">{total} produit(s)</p>
           </div>
           <Button asChild className="bg-pink-400 hover:bg-pink-500 text-white rounded-full shadow-lg">
             <Link to="/admin/produits/nouveau"><Plus className="h-4 w-4 mr-2" />Ajouter</Link>
@@ -95,7 +111,7 @@ export default function AdminProducts() {
         {isLoading && <div className="space-y-4">{['sk1','sk2','sk3'].map(k => <Skeleton key={k} className="h-24 rounded-2xl" />)}</div>}
 
         <div className="space-y-4">
-          {filtered.map(p => {
+          {products.map(p => {
             const displayImg = parseImages(p.image_url)[0] ?? null;
             return (
               <Card key={p.id} className="border-pink-100 hover:shadow-md transition-all">
@@ -129,7 +145,34 @@ export default function AdminProducts() {
           })}
         </div>
 
-        {!isLoading && filtered.length === 0 && (
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-4 mt-8">
+            <Button
+              variant="outline"
+              size="icon"
+              className="border-pink-200 text-pink-600"
+              disabled={currentPage <= 1}
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-sm text-pink-600 font-medium">
+              Page {currentPage} / {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="icon"
+              className="border-pink-200 text-pink-600"
+              disabled={currentPage >= totalPages}
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+
+        {!isLoading && products.length === 0 && (
           <div className="text-center py-16">
             <Package className="h-12 w-12 text-pink-200 mx-auto mb-4" />
             <p className="text-pink-500">Aucun produit trouvé</p>

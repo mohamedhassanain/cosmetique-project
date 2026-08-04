@@ -88,14 +88,53 @@ const PRODUCT_SELECT_PUBLIC = `
   subcategories(name)
 `;
 
-export async function fetchAllProducts(): Promise<Product[]> {
-  const { data, error } = await supabase
+export interface AdminProductFilters {
+  search?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AdminProductsResult {
+  products: Product[];
+  total: number;
+  totalPages: number;
+  page: number;
+}
+
+export async function fetchAllProducts(filters: AdminProductFilters = {}): Promise<AdminProductsResult> {
+  const {
+    search = '',
+    page = 1,
+    pageSize = 20,
+  } = filters;
+
+  const safePageSize = Math.min(Math.max(pageSize, 1), MAX_PAGE_SIZE);
+
+  let query = supabase
     .from('products')
-    .select(PRODUCT_SELECT_ADMIN)
+    .select(PRODUCT_SELECT_ADMIN, { count: 'exact' })
     .order('created_at', { ascending: false });
 
+  const term = sanitizeSearchTerm(search);
+  if (term) {
+    query = query.or(
+      `name.ilike.%${term}%,` +
+      `brand.ilike.%${term}%`
+    );
+  }
+
+  const from = (page - 1) * safePageSize;
+  query = query.range(from, from + safePageSize - 1);
+
+  const { data, error, count } = await query;
   if (error) throw error;
-  return (data || []) as unknown as Product[];
+
+  return {
+    products: (data || []) as unknown as Product[],
+    total: count || 0,
+    totalPages: Math.ceil((count || 0) / safePageSize),
+    page,
+  };
 }
 
 /** Produits actifs limités (page d'accueil) — évite de charger tout le catalogue. */

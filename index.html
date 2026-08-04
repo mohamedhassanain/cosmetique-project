@@ -1,66 +1,11 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <script>
-      /**
-       * Expert Fix: Trusted Types Global Policy & Sink Patching (v2)
-       * Resolves "This document requires 'TrustedScript' assignment" errors
-       * by intercepting string assignments to all sensitive sinks.
-       */
-      (function() {
-        const tt = globalThis.trustedTypes;
-        if (tt && tt.createPolicy) {
-          const p = tt.defaultPolicy || (function() {
-            try {
-              return tt.createPolicy('default', {
-                createHTML: s => s,
-                createScript: s => s,
-                createScriptURL: s => s,
-              });
-            } catch (e) {
-              console.error('Trusted Types Policy creation failed:', e);
-              return null;
-            }
-          })();
-
-          if (p) {
-            const patch = (obj, prop, type) => {
-              const d = Object.getOwnPropertyDescriptor(obj, prop);
-              if (d && d.set) {
-                const s = d.set;
-                Object.defineProperty(obj, prop, {
-                  ...d,
-                  set: function(v) {
-                    if (typeof v === 'string') {
-                      if (type === 'script' && (this.nodeName === 'SCRIPT' || this.tagName === 'SCRIPT')) {
-                        s.call(this, p.createScript(v));
-                      } else if (type === 'html') {
-                        s.call(this, p.createHTML(v));
-                      } else if (type === 'url') {
-                        s.call(this, p.createScriptURL(v));
-                      } else {
-                        s.call(this, v);
-                      }
-                    } else {
-                      s.call(this, v);
-                    }
-                  }
-                });
-              }
-            };
-
-            patch(Node.prototype, 'textContent', 'script');
-            patch(HTMLElement.prototype, 'innerText', 'script');
-            patch(Element.prototype, 'innerHTML', 'html');
-            patch(Element.prototype, 'outerHTML', 'html');
-            patch(HTMLScriptElement.prototype, 'src', 'url');
-            patch(HTMLScriptElement.prototype, 'text', 'script');
-          }
-        }
-      })();
-    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Nunito:wght@300;400;500;600;700&display=swap">
     <title>Kissariya Cosmétiques - Votre Beauté, Notre Passion</title>
     <meta name="description" content="Boutique de cosmétiques naturels et bio au Maroc. Découvrez notre sélection de soins visage, corps, cheveux et maquillage." />
     <meta name="author" content="Kissariya Cosmétiques" />

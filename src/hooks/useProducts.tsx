@@ -10,12 +10,13 @@ import {
   deleteProduct as apiDeleteProduct,
   ProductFormData,
   ProductFilters,
+  AdminProductFilters,
 } from '@/services/product.service';
 import { QUERY_KEYS, PRODUCT_INVALIDATION_KEYS } from '@/constants/query-keys';
 import { Product } from '@/types/product';
 
 // Ré-export pour compatibilité avec les imports existants
-export type { ProductFormData, ProductFilters } from '@/services/product.service';
+export type { ProductFormData, ProductFilters, AdminProductFilters } from '@/services/product.service';
 
 type QueryClientType = ReturnType<typeof useQueryClient>;
 
@@ -50,15 +51,20 @@ function rollbackProducts(queryClient: QueryClientType, previousProducts: Produc
 // HOOKS DE REQUÊTE
 // ==============================
 
-export function useProducts() {
-  const { data: products = [], isLoading } = useQuery({
-    queryKey: QUERY_KEYS.products,
-    queryFn: fetchAllProducts,
+export function useProducts(filters: AdminProductFilters = {}) {
+  const { data, isLoading } = useQuery({
+    queryKey: QUERY_KEYS.adminProducts(filters),
+    queryFn: () => fetchAllProducts(filters),
     staleTime: 1000 * 60 * 2,
   });
 
+  const products = data?.products ?? [];
+
   return {
     products,
+    total: data?.total ?? 0,
+    totalPages: data?.totalPages ?? 0,
+    currentPage: data?.page ?? 1,
     featuredProducts: products.filter(p => p.is_featured),
     promotionProducts: products.filter(p => p.is_promotion),
     isLoading,

@@ -151,6 +151,18 @@ CREATE INDEX IF NOT EXISTS idx_products_promotion
 CREATE INDEX IF NOT EXISTS idx_products_featured
   ON public.products (is_featured) WHERE is_featured = true;
 
+-- Extension pour recherche approximative performante (ilike avec wildcard en début de motif).
+-- Sans cet index, un filtre `name.ilike.%terme%` déclenche un scan séquentiel car le B-tree
+-- classique ne peut pas exploiter un wildcard en tête. Les index GIN trigram permettent au
+-- planificateur de requête de filtrer efficacement même avec `%...%`.
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+CREATE INDEX IF NOT EXISTS idx_products_name_trgm
+  ON public.products USING gin (name gin_trgm_ops);
+
+CREATE INDEX IF NOT EXISTS idx_products_brand_trgm
+  ON public.products USING gin (brand gin_trgm_ops);
+
 -- =====================================================
 -- PRODUCT IMAGES (table normalisée au lieu de JSON)
 -- =====================================================

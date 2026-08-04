@@ -1,6 +1,7 @@
 /// <reference types="vitest" />
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
+// import { visualizer } from "rollup-plugin-visualizer"; // Diagnostic : décommenter pour analyser le bundle
 import path from "node:path";
 
 // https://vitejs.dev/config/
@@ -9,7 +10,7 @@ export default defineConfig(() => ({
     host: "::",
     port: 8080,
   },
-  plugins: [react()].filter(Boolean),
+  plugins: [react() /* , visualizer({ open: false, filename: 'stats.html', gzipSize: true, brotliSize: true }) */].filter(Boolean),
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -28,6 +29,8 @@ export default defineConfig(() => ({
           if (id.includes("@radix-ui")) return "radix-ui";
           if (id.includes("@tanstack")) return "tanstack-query";
           if (id.includes("@sentry")) return "sentry";
+          if (id.includes("leaflet")) return "leaflet";
+          if (id.includes("recharts")) return "recharts";
           if (
             id.includes("/react/") ||
             id.includes("/react-dom/") ||
