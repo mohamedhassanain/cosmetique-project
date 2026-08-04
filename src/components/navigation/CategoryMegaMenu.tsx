@@ -160,7 +160,7 @@ function CategoryPanelContent({
             to="/produits?featured=true"
             className="flex items-center justify-between px-4 py-3 bg-white rounded-lg border border-green-200 text-sm font-medium text-green-600 hover:border-green-300 hover:text-green-700 transition-all shadow-sm"
           >
-            <span>🌟 Coup de cœur</span>
+            <span>🌟 Recommandé</span>
             <ArrowRight className="h-4 w-4 text-green-400" />
           </Link>
         </div>
@@ -233,7 +233,7 @@ function CategoryPanelContent({
                 to="/produits?featured=true"
                 className="text-green-500 hover:text-green-700 text-sm py-1.5 block font-medium"
               >
-                🌟 Coup de cœur
+                🌟 Recommandé
               </Link>
             </div>
           )}
@@ -371,7 +371,7 @@ function MobileDrawer({
             onClick={onNavigate}
             className="flex items-center justify-between px-3.5 py-3 bg-green-50 rounded-lg text-sm text-green-600 hover:bg-green-100"
           >
-            <span className="flex items-center gap-2.5">🌟 Coup de cœur</span>
+            <span className="flex items-center gap-2.5">🌟 Recommandé</span>
             <ArrowRight className="h-4 w-4 text-green-400" />
           </Link>
         </div>

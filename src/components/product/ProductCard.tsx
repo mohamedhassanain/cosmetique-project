@@ -77,7 +77,7 @@ export const ProductCard = memo(function ProductCard({ product }: Readonly<Produ
           {product.is_featured && (
             <div className="absolute top-3 right-3 z-20">
               <Badge className="bg-green-400 hover:bg-green-500 border-none px-2 py-0.5 shadow-lg text-xs font-medium">
-                Coup de cœur
+                Recommandé
               </Badge>
             </div>
           )}

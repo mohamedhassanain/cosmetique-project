@@ -361,7 +361,7 @@ export default function AdminProductForm() {
 
               {/* Featured + Active */}
               <div className="flex items-center justify-between p-3 bg-pink-50 rounded-xl">
-                <div><Label>Coup de cœur</Label><p className="text-xs text-pink-500">Affiché dans la section Coup de cœur</p></div>
+                <div><Label>Recommandé</Label><p className="text-xs text-pink-500">Affiché dans la section Recommandé</p></div>
                 <Switch checked={isFeatured} onCheckedChange={setIsFeatured} />
               </div>
 

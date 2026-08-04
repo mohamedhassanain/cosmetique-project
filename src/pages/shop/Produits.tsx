@@ -96,7 +96,7 @@ export default function Produits() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-display font-bold text-pink-900">
-              {selectedPromo ? 'Promotions' : selectedFeatured ? 'Coup de cœur' : 'Nos Produits'}
+              {selectedPromo ? 'Promotions' : selectedFeatured ? 'Recommandé' : 'Nos Produits'}
             </h1>
             <p className="text-pink-600">{total} produit(s)</p>
           </div>
@@ -132,7 +132,7 @@ export default function Produits() {
           </button>
           <button onClick={() => { setSelectedFeatured(!selectedFeatured); }}
             className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${selectedFeatured ? 'bg-green-200 text-green-700' : 'bg-white text-pink-600 border border-pink-200 hover:bg-pink-50'}`}>
-            Coup de cœur
+            Recommandé
           </button>
         </div>
 

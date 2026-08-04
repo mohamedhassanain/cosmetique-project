@@ -140,7 +140,7 @@ export default function Index() {
                 <div className="flex items-center justify-between mb-8">
                   <h2 className="text-2xl font-display font-bold text-pink-900 flex items-center gap-2">
                     <Sparkles className="h-6 w-6 text-pink-400" />
-                    Coup de cœur
+                    Recommandé
                   </h2>
                   <Button variant="ghost" className="text-pink-600" asChild>
                     <Link to="/produits?featured=true">

@@ -93,7 +93,7 @@ export function Footer() {
             <div>
               <h4 className="text-white font-bold mb-4 text-sm uppercase tracking-wider">Services</h4>
               <ul className="space-y-2 text-sm">
-                <li><Link to="/produits?featured=true" className="hover:text-white transition-colors">Coup de cœur</Link></li>
+                <li><Link to="/produits?featured=true" className="hover:text-white transition-colors">Recommandé</Link></li>
                 <li><Link to="/produits?promotions=true" className="hover:text-white transition-colors">Bonnes affaires</Link></li>
                 <li><Link to="#" className="hover:text-white transition-colors">Fidélité</Link></li>
               </ul>

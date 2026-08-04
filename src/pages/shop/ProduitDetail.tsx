@@ -138,7 +138,7 @@ export default function ProduitDetail() {
               )}
               {product.is_featured && (
                 <Badge className="absolute top-4 right-4 bg-green-400 text-white border-none px-3 py-1 shadow-lg">
-                  <Sparkles className="h-3 w-3 mr-1" /> Coup de cœur
+                  <Sparkles className="h-3 w-3 mr-1" /> Recommandé
                 </Badge>
               )}
               {mediaItems.length > 1 && (

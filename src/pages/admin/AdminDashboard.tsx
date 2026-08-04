@@ -87,7 +87,7 @@ export default function AdminDashboard() {
             <CardContent><p className="text-3xl font-bold text-pink-900">{products.length}</p></CardContent>
           </Card>
           <Card className="border-pink-100">
-            <CardHeader className="pb-2"><CardDescription className="flex items-center gap-2 text-pink-500"><Sparkles className="h-4 w-4" />En vedette</CardDescription></CardHeader>
+            <CardHeader className="pb-2"><CardDescription className="flex items-center gap-2 text-pink-500"><Sparkles className="h-4 w-4" />Recommandé</CardDescription></CardHeader>
             <CardContent><p className="text-3xl font-bold text-pink-900">{featuredProducts.length}</p></CardContent>
           </Card>
           <Card className="border-pink-100">
