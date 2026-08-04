@@ -261,9 +261,11 @@ ON CONFLICT DO NOTHING;
 -- =====================================================
 -- SEED DATA
 -- =====================================================
+-- site_settings est un singleton fonctionnel : ne le créer que si la table est vide.
+-- ON CONFLICT seul ne suffit pas ici car la table ne possède pas de clé unique métier.
 INSERT INTO public.site_settings (site_name, whatsapp_number, hero_title, hero_subtitle, promo_enabled, promo_badge, promo_title, promo_subtitle, promo_link)
-VALUES ('Kissariya Cosmétiques', '+212600000000', 'Votre Beauté, Notre Passion', 'Découvrez notre sélection de cosmétiques naturels et bio au Maroc', true, 'PROMO DU MOMENT', 'Jusqu''à -50%', 'Sur une sélection de cosmétiques naturels & bio', '/produits?promotions=true')
-ON CONFLICT DO NOTHING;
+SELECT 'Kissariya Cosmétiques', '+212600000000', 'Votre Beauté, Notre Passion', 'Découvrez notre sélection de cosmétiques naturels et bio au Maroc', true, 'PROMO DU MOMENT', 'Jusqu''à -50%', 'Sur une sélection de cosmétiques naturels & bio', '/produits?promotions=true'
+WHERE NOT EXISTS (SELECT 1 FROM public.site_settings);
 
 INSERT INTO public.categories (name, slug, description, sort_order) VALUES
 ('Soins Visage', 'soins-visage', 'Crèmes, sérums, nettoyants et masques pour le visage', 1),
@@ -276,16 +278,16 @@ INSERT INTO public.categories (name, slug, description, sort_order) VALUES
 ('Accessoires', 'accessoires-beaute', 'Pinceaux, éponges et outils de beauté', 8)
 ON CONFLICT DO NOTHING;
 
+-- Évite de recréer la promotion de démonstration à chaque exécution du schéma.
 INSERT INTO public.promos (badge, title, subtitle, link, is_active, sort_order)
-VALUES (
+SELECT
   'PROMO DU MOMENT',
   'Jusqu''à -50%',
   'Sur une sélection de cosmétiques naturels & bio',
   '/produits?promotions=true',
   true,
   0
-)
-ON CONFLICT DO NOTHING;
+WHERE NOT EXISTS (SELECT 1 FROM public.promos);
 
 -- =====================================================
 -- FONCTIONS
@@ -427,7 +429,11 @@ DROP POLICY IF EXISTS "images_public_select" ON storage.objects;
 CREATE POLICY "images_public_select" ON storage.objects FOR SELECT USING (bucket_id = 'cosmetics-images');
 
 DROP POLICY IF EXISTS "images_authenticated_manage" ON storage.objects;
-CREATE POLICY "images_authenticated_manage" ON storage.objects FOR ALL TO authenticated USING (bucket_id = 'cosmetics-images') WITH CHECK (bucket_id = 'cosmetics-images');
+DROP POLICY IF EXISTS "images_admin_manage" ON storage.objects;
+CREATE POLICY "images_admin_manage" ON storage.objects
+  FOR ALL TO authenticated
+  USING (bucket_id = 'cosmetics-images' AND public.is_admin())
+  WITH CHECK (bucket_id = 'cosmetics-images' AND public.is_admin());
 
 -- =====================================================
 -- REFRESH SCHEMA CACHE
