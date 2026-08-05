@@ -1,0 +1,12 @@
+$kind: http-request
+description: "Équivalent de fetchPublicProducts() avec search. Changez la variable 'search' dans l'environnement (ex: creme, serum, maroc...)."
+url: "{{supabase_url}}/rest/v1/products?select=id,name,slug,price,brand&is_active=eq.true&or=(search_vector.phfts.{{search}},name.ilike.*{{search}}*,brand.ilike.*{{search}}*)&limit=16"
+method: GET
+headers:
+  apikey: "{{anon_key}}"
+queryParams:
+  select: id,name,slug,price,brand
+  is_active: eq.true
+  or: (search_vector.phfts.{{search}},name.ilike.*{{search}}*,brand.ilike.*{{search}}*)
+  limit: "16"
+order: 3000

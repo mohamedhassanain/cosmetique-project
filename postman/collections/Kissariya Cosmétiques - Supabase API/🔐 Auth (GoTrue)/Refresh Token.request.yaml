@@ -1,0 +1,23 @@
+$kind: http-request
+url: "{{supabase_url}}/auth/v1/token?grant_type=refresh_token"
+method: POST
+headers:
+  apikey: "{{anon_key}}"
+  Content-Type: application/json
+queryParams:
+  grant_type: refresh_token
+body:
+  type: json
+  content: |-
+    {
+      "refresh_token": "{{refresh_token}}"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 200', () => pm.response.to.have.status(200));
+      const json = pm.response.json();
+      pm.environment.set('access_token', json.access_token);
+      pm.environment.set('refresh_token', json.refresh_token);
+    language: text/javascript
+order: 3000

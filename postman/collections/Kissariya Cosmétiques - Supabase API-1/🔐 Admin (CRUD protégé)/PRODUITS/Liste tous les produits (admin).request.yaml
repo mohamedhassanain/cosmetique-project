@@ -1,0 +1,22 @@
+$kind: http-request
+description: "Équivalent de fetchAllProducts(). Le header Prefer: count=exact renvoie le total dans X-Total-Count."
+url: "{{supabase_url}}/rest/v1/products?select=id,name,slug,description,price,original_price,is_promotion,is_featured,is_active,image_url,video_url,category_id,subcategory_id,stock_quantity,weight_grams,brand,location_city,location_url,show_location,created_at,updated_at,categories(name,slug),subcategories(name),product_images(id,url,sort_order)&order=created_at.desc&limit=20&offset=0"
+method: GET
+headers:
+  apikey: "{{anon_key}}"
+  Authorization: Bearer {{access_token}}
+  Prefer: count=exact
+queryParams:
+  select: id,name,slug,description,price,original_price,is_promotion,is_featured,is_active,image_url,video_url,category_id,subcategory_id,stock_quantity,weight_grams,brand,location_city,location_url,show_location,created_at,updated_at,categories(name,slug),subcategories(name),product_images(id,url,sort_order)
+  order: created_at.desc
+  limit: "20"
+  offset: "0"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 200', () => pm.response.to.have.status(200));
+      const json = pm.response.json();
+      pm.test('X-Total-Count présent', () => pm.expect(pm.response.headers.get('X-Total-Count')).to.exist);
+      if (json.length > 0) pm.environment.set('product_id', json[0].id);
+    language: text/javascript
+order: 1000

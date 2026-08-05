@@ -1,0 +1,19 @@
+$kind: http-request
+description: Équivalent de createSubcategory(). Le slug est normalement généré par slugify() côté app.
+url: "{{supabase_url}}/rest/v1/subcategories"
+method: POST
+headers:
+  apikey: "{{anon_key}}"
+  Authorization: Bearer {{access_token}}
+  Content-Type: application/json
+  Prefer: return=representation
+body:
+  type: json
+  content: |-
+    {
+      "category_id": "{{category_id}}",
+      "name": "Crèmes Solaires",
+      "slug": "cremes-solaires",
+      "sort_order": 0
+    }
+order: 3000

@@ -1,0 +1,11 @@
+$kind: http-request
+description: Lecture réservée admin (policy contact_messages_admin_select).
+url: "{{supabase_url}}/rest/v1/contact_messages?select=*&order=created_at.desc"
+method: GET
+headers:
+  apikey: "{{anon_key}}"
+  Authorization: Bearer {{access_token}}
+queryParams:
+  select: "*"
+  order: created_at.desc
+order: 1000

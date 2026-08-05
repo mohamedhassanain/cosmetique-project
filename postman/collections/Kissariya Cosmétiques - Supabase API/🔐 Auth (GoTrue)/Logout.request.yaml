@@ -1,0 +1,11 @@
+$kind: http-request
+url: "{{supabase_url}}/auth/v1/logout"
+method: POST
+headers:
+  apikey: "{{anon_key}}"
+  Authorization: Bearer {{access_token}}
+  Content-Type: application/json
+body:
+  type: json
+  content: "{}"
+order: 5000

@@ -1,0 +1,17 @@
+$kind: http-request
+description: Équivalent de fetchSiteSettings() et fetchWhatsAppNumber().
+url: "{{supabase_url}}/rest/v1/site_settings?select=*&limit=1"
+method: GET
+headers:
+  apikey: "{{anon_key}}"
+queryParams:
+  select: "*"
+  limit: "1"
+scripts:
+  - type: afterResponse
+    code: |-
+      const json = pm.response.json();
+      if (Array.isArray(json) && json[0]?.id) pm.environment.set('settings_id', json[0].id);
+      else if (json?.id) pm.environment.set('settings_id', json.id);
+    language: text/javascript
+order: 8000

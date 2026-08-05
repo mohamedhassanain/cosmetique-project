@@ -1,0 +1,24 @@
+$kind: http-request
+description: "Upload d'une image dans le bucket. Dans Postman, onglet Body → binary → choisissez le fichier. Réponse attendue : { \"Key\": \"cosmetics-images/...\" }."
+url: "{{supabase_url}}/storage/v1/object/cosmetics-images/{{file_name}}"
+method: POST
+headers:
+  Authorization: Bearer {{access_token}}
+  Content-Type: image/jpeg
+  x-upsert: "false"
+body:
+  type: file
+  content:
+    src: /chemin/vers/votre-image.jpg
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 200', () => pm.response.to.have.status(200));
+      const json = pm.response.json();
+      pm.test('Clé retournée', () => pm.expect(json.Key).to.exist);
+      if (json.Key) {
+        const url = pm.environment.get('supabase_url') + '/storage/v1/object/public/' + json.Key;
+        console.log('Image publique : ' + url);
+      }
+    language: text/javascript
+order: 1000

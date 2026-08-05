@@ -1,0 +1,7 @@
+$kind: http-request
+description: Lecture publique de l'image uploadée (bucket public).
+url: "{{supabase_url}}/storage/v1/object/public/cosmetics-images/{{file_name}}"
+method: GET
+headers:
+  apikey: "{{anon_key}}"
+order: 2000

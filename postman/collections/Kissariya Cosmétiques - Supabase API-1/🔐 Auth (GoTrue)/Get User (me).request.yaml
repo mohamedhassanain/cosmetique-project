@@ -1,0 +1,14 @@
+$kind: http-request
+description: Retourne l'utilisateur connecté. Test rapide pour vérifier que le token est valide.
+url: "{{supabase_url}}/auth/v1/user"
+method: GET
+headers:
+  apikey: "{{anon_key}}"
+  Authorization: Bearer {{access_token}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 200', () => pm.response.to.have.status(200));
+      pm.test('Un utilisateur est retourné', () => pm.expect(pm.response.json().id).to.exist);
+    language: text/javascript
+order: 4000

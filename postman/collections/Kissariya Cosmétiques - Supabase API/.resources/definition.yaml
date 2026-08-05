@@ -1,0 +1,11 @@
+$kind: collection
+description: |-
+  Collection de tests pour l'API Supabase (PostgREST + GoTrue + Storage) utilisée par l'application Kissariya. Importez l'environnement 'Kissariya - Supabase' d'abord, puis renseignez supabase_url, anon_key, service_role_key, admin_email et admin_password.
+
+  Fonctionnement : l'app React n'a pas de backend - elle appelle Supabase directement. Ces requêtes reproduisent exactement les appels des services src/services/*.ts.
+
+  Ordre recommandé :
+  1. Auth → Login (récupère automatiquement le token admin)
+  2. Public → exploration des données
+  3. Admin → CRUD produit/catégorie/commande/promo
+  4. Storage → upload d'image

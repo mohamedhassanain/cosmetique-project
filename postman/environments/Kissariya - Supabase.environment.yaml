@@ -1,0 +1,36 @@
+name: Kissariya - Supabase
+values:
+  - key: supabase_url
+    value: 'https://ygkeuhatokvkdwwoccty.supabase.co'
+  - key: anon_key
+    secret: true
+  - key: service_role_key
+    value: cle-service-role-jamais-en-frontend
+  - key: admin_email
+    value: admin@votre-site.com
+  - key: admin_password
+    value: mot-de-passe-admin
+  - key: search
+    value: creme
+  - key: category_slug
+    value: soins-visage
+  - key: slug
+    value: creme-hydratante
+  - key: file_name
+    value: test-upload.jpg
+  - key: access_token
+    value: ''
+  - key: refresh_token
+    value: ''
+  - key: user_id
+    value: ''
+  - key: product_id
+    value: ''
+  - key: order_id
+    value: ''
+  - key: category_id
+    value: ''
+  - key: promo_id
+    value: ''
+  - key: settings_id
+    value: ''

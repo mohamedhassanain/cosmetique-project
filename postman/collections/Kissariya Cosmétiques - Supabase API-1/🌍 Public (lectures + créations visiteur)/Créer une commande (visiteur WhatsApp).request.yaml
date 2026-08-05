@@ -1,0 +1,33 @@
+$kind: http-request
+description: Équivalent de createOrder(). INSERT est ouvert au public par la policy RLS orders_insert_public — c'est voulu (commandes WhatsApp sans compte). product_id est nullable et doit rester à null si aucune variable n'a été capturée, pour éviter un UUID vide.
+url: "{{supabase_url}}/rest/v1/orders"
+method: POST
+headers:
+  apikey: "{{anon_key}}"
+  Content-Type: application/json
+  Prefer: return=representation
+body:
+  type: json
+  content: |-
+    {
+      "customer_name": "Test Postman",
+      "customer_phone": "+212600000000",
+      "customer_city": "Casablanca",
+      "product_name": "Crème Hydratante Visage",
+      "product_id": null,
+      "quantity": 2,
+      "total_price": 298,
+      "status": "pending",
+      "notes": "Commande créée depuis Postman"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 201', () => pm.response.to.have.status(201));
+      const json = pm.response.json();
+      if (Array.isArray(json) && json[0]?.id) {
+        pm.environment.set('order_id', json[0].id);
+        console.log('Commande créée : ' + json[0].id);
+      }
+    language: text/javascript
+order: 9000

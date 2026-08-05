@@ -1,0 +1,13 @@
+$kind: http-request
+description: Page 1 (offset 0, limit 16). Modifiez category_id=eq.<uuid> pour filtrer par catégorie.
+url: "{{supabase_url}}/rest/v1/products?select=id,name,slug,price,original_price,is_promotion,is_featured,image_url,brand,created_at,categories(name,slug),subcategories(name)&is_active=eq.true&order=created_at.desc&limit=16&offset=0"
+method: GET
+headers:
+  apikey: "{{anon_key}}"
+queryParams:
+  select: id,name,slug,price,original_price,is_promotion,is_featured,image_url,brand,created_at,categories(name,slug),subcategories(name)
+  is_active: eq.true
+  order: created_at.desc
+  limit: "16"
+  offset: "0"
+order: 2000

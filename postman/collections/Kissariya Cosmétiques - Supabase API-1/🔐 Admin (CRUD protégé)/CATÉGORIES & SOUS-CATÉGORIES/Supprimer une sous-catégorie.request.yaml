@@ -1,0 +1,9 @@
+$kind: http-request
+url: "{{supabase_url}}/rest/v1/subcategories?id=eq.{{subcategory_id}}"
+method: DELETE
+headers:
+  apikey: "{{anon_key}}"
+  Authorization: Bearer {{access_token}}
+queryParams:
+  id: eq.{{subcategory_id}}
+order: 5000

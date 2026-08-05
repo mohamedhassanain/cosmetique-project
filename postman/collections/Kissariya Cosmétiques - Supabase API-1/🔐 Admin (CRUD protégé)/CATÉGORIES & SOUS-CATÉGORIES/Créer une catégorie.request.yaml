@@ -1,0 +1,30 @@
+$kind: http-request
+description: Équivalent de createCategory().
+url: "{{supabase_url}}/rest/v1/categories"
+method: POST
+headers:
+  apikey: "{{anon_key}}"
+  Authorization: Bearer {{access_token}}
+  Content-Type: application/json
+  Prefer: return=representation
+body:
+  type: json
+  content: |-
+    {
+      "name": "Soins Solaires",
+      "slug": "soins-solaires",
+      "description": "Protection solaire visage et corps",
+      "sort_order": 9
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 201', () => pm.response.to.have.status(201));
+      const json = pm.response.json();
+      const c = Array.isArray(json) ? json[0] : json;
+      if (c?.id) {
+        pm.environment.set('category_id', c.id);
+        console.log('Catégorie créée : ' + c.id);
+      }
+    language: text/javascript
+order: 1000

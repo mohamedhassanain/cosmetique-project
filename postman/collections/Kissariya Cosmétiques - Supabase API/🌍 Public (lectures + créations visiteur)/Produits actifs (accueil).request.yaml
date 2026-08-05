@@ -1,0 +1,22 @@
+$kind: http-request
+description: Équivalent de fetchActiveProducts() — 60 derniers produits actifs.
+url: "{{supabase_url}}/rest/v1/products?select=id,name,slug,price,original_price,is_promotion,is_featured,image_url,brand,created_at,category_id,subcategory_id,categories(name,slug),subcategories(name)&is_active=eq.true&order=created_at.desc&limit=60"
+method: GET
+headers:
+  apikey: "{{anon_key}}"
+queryParams:
+  select: id,name,slug,price,original_price,is_promotion,is_featured,image_url,brand,created_at,category_id,subcategory_id,categories(name,slug),subcategories(name)
+  is_active: eq.true
+  order: created_at.desc
+  limit: "60"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 200', () => pm.response.to.have.status(200));
+      pm.test('Réponse = tableau', () => pm.expect(pm.response.json()).to.be.an('array'));
+      if (pm.response.json().length > 0) {
+        pm.environment.set('product_id', pm.response.json()[0].id);
+        pm.environment.set('slug', pm.response.json()[0].slug);
+      }
+    language: text/javascript
+order: 1000

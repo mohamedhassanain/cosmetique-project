@@ -2,6 +2,12 @@
 workspace:
   id: d2c994be-899a-46ce-8bec-e33975c6e274
 
+# Each entry here maps a local resource to one or more corresponding objects in Postman Cloud
+
+cloudResources:
+  collections:
+    ../postman/collections/Kissariya Cosmétiques - Supabase API: d6ab859e-eb57-493d-98f7-645f28675bbc
+
 # All resources in the `postman/` folder are automatically registered in Local View.
 # Point to additional files outside the `postman/` folder to register them individually. Example:
 #localResources:

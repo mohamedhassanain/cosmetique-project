@@ -1,0 +1,3 @@
+$kind: collection
+description: Bucket public 'cosmetics-images'. Les uploads exigent un compte admin (policy storage).
+order: 4000

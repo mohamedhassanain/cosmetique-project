@@ -1,0 +1,3 @@
+$kind: collection
+description: Requêtes accessibles SANS authentification (header apikey anon uniquement). Elles correspondent aux endpoints appelés par la boutique.
+order: 2000

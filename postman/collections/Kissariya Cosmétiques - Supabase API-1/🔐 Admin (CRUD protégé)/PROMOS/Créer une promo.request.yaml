@@ -1,0 +1,33 @@
+$kind: http-request
+description: Équivalent de createPromo().
+url: "{{supabase_url}}/rest/v1/promos"
+method: POST
+headers:
+  apikey: "{{anon_key}}"
+  Authorization: Bearer {{access_token}}
+  Content-Type: application/json
+  Prefer: return=representation
+body:
+  type: json
+  content: |-
+    {
+      "badge": "NOUVEAU",
+      "title": "-30% sur toute la boutique",
+      "subtitle": "Offre de lancement - valable ce mois-ci",
+      "link": "/produits?promotions=true",
+      "image_url": "https://images.unsplash.com/photo-1556228720-195a672e8a03?w=1200",
+      "is_active": true,
+      "sort_order": 1
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 201', () => pm.response.to.have.status(201));
+      const json = pm.response.json();
+      const p = Array.isArray(json) ? json[0] : json;
+      if (p?.id) {
+        pm.environment.set('promo_id', p.id);
+        console.log('Promo créée : ' + p.id);
+      }
+    language: text/javascript
+order: 2000

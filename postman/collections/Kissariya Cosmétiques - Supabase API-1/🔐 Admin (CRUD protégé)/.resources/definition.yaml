@@ -1,0 +1,3 @@
+$kind: collection
+description: "Toutes ces requêtes exigent Authorization: Bearer {{access_token}} ET que le compte ait le rôle 'admin' dans public.profiles (fonction public.is_admin()). Sinon → 403 ou tableau vide. Assurez-vous d'avoir lancé 'Login' d'abord."
+order: 3000

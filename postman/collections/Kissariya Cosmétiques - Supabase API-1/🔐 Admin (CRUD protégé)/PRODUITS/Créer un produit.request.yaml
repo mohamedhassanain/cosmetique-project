@@ -1,0 +1,43 @@
+$kind: http-request
+description: Équivalent de createProduct(). Le slug doit être unique. Capte l'id dans product_id.
+url: "{{supabase_url}}/rest/v1/products"
+method: POST
+headers:
+  apikey: "{{anon_key}}"
+  Authorization: Bearer {{access_token}}
+  Content-Type: application/json
+  Prefer: return=representation
+body:
+  type: json
+  content: |-
+    {
+      "name": "Crème Hydratante Visage 50ml",
+      "slug": "creme-hydratante-visage-50ml",
+      "description": "Crème hydratante légère pour peau sèche et sensible.",
+      "ingredients": "Eau, Aloe Vera, Beurre de karité",
+      "how_to_use": "Appliquer matin et soir sur peau propre.",
+      "price": 149,
+      "original_price": 199,
+      "is_promotion": true,
+      "is_featured": true,
+      "is_active": true,
+      "category_id": "{{category_id}}",
+      "stock_quantity": 25,
+      "weight_grams": 50,
+      "brand": "Kissariya",
+      "location_city": "Casablanca",
+      "location_url": "https://maps.google.com/?q=Casablanca",
+      "show_location": true
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 201', () => pm.response.to.have.status(201));
+      const json = pm.response.json();
+      const p = Array.isArray(json) ? json[0] : json;
+      if (p?.id) {
+        pm.environment.set('product_id', p.id);
+        console.log('Produit créé : ' + p.id);
+      }
+    language: text/javascript
+order: 2000

@@ -15,38 +15,20 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE EXTENSION IF NOT EXISTS "unaccent";
 
 -- =====================================================
--- PROFILES (admin uniquement)
+-- SCRIPT UNIQUE : CRÉATION DE TOUTES LES TABLES
 -- =====================================================
+-- Ce bloc est le code unique à exécuter pour créer les tables principales
+-- du schéma. Il est idempotent : les tables déjà présentes ne sont pas recréées.
 CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
   full_name TEXT,
   phone TEXT,
-  -- Un nouvel utilisateur est non privilégié par défaut.
-  -- Les administrateurs sont promus explicitement via une opération réservée.
   role TEXT NOT NULL DEFAULT 'staff' CHECK (role IN ('admin', 'staff')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- ═══════════════════════════════════════════════════════════════
--- RBAC : les policies `*_admin_*` vérifient désormais le rôle
--- dans public.profiles via public.is_admin() au lieu de
--- auth.role() = 'authenticated'. Un compte authentifié qui n'a
--- pas le rôle 'admin' ne peut plus lire/écrire les données admin.
--- Cette table est réservée aux accès back-office ; aucun profil visiteur n'est créé.
--- ═══════════════════════════════════════════════════════════════
-CREATE OR REPLACE FUNCTION public.is_admin()
-RETURNS BOOLEAN AS $$
-SELECT EXISTS (
-  SELECT 1 FROM public.profiles
-  WHERE user_id = auth.uid() AND role = 'admin'
-);
-$$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public;
-
--- =====================================================
--- CATEGORIES
--- =====================================================
 CREATE TABLE IF NOT EXISTS public.categories (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
@@ -58,45 +40,16 @@ CREATE TABLE IF NOT EXISTS public.categories (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
--- =====================================================
--- SUBCATEGORIES
--- =====================================================
 CREATE TABLE IF NOT EXISTS public.subcategories (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   category_id UUID NOT NULL REFERENCES public.categories(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
-  -- Slug stable pour les URLs et le filtrage fiable (accents/casse).
-  -- Unique par catégorie : le même nom peut exister dans deux catégories.
   slug TEXT,
   sort_order INTEGER DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
--- ⚠️ MIGRATION DES DONNÉES EXISTANTES (slug) :
--- Génère les slugs des sous-catégories déjà en base (une seule fois).
-UPDATE public.subcategories
-SET slug = lower(regexp_replace(
-  regexp_replace(unaccent(name), '[^a-zA-Z0-9]+', '-', 'g'),
-  '(^-)|(-$)', '', 'g'
-))
-WHERE slug IS NULL
-  AND EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'unaccent');
-
-UPDATE public.subcategories
-SET slug = lower(regexp_replace(
-  regexp_replace(name, '[^a-zA-Z0-9]+', '-', 'g'),
-  '(^-)|(-$)', '', 'g'
-))
-WHERE slug IS NULL;
-
--- Contrainte d'unicité par catégorie, une fois les données backfillées.
-CREATE UNIQUE INDEX IF NOT EXISTS idx_subcategories_category_slug
-  ON public.subcategories (category_id, slug);
-
--- =====================================================
--- PRODUCTS
--- =====================================================
 CREATE TABLE IF NOT EXISTS public.products (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
@@ -131,6 +84,111 @@ CREATE TABLE IF NOT EXISTS public.products (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS public.product_images (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_id UUID NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+  url TEXT NOT NULL,
+  sort_order INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.orders (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  customer_name TEXT NOT NULL,
+  customer_phone TEXT NOT NULL,
+  customer_city TEXT,
+  product_id UUID REFERENCES public.products(id) ON DELETE SET NULL,
+  product_name TEXT NOT NULL,
+  quantity INTEGER NOT NULL DEFAULT 1,
+  total_price NUMERIC NOT NULL,
+  status TEXT DEFAULT 'pending',
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.contact_messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  email TEXT NOT NULL,
+  phone TEXT,
+  subject TEXT,
+  message TEXT NOT NULL,
+  is_read BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.site_settings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  site_name TEXT NOT NULL DEFAULT 'Kissariya Cosmétiques',
+  site_description TEXT,
+  whatsapp_number TEXT,
+  phone_number TEXT,
+  email TEXT,
+  address TEXT,
+  logo_url TEXT,
+  favicon_url TEXT,
+  hero_title TEXT,
+  hero_subtitle TEXT,
+  free_shipping_min NUMERIC,
+  promo_enabled BOOLEAN NOT NULL DEFAULT true,
+  promo_badge TEXT,
+  promo_title TEXT,
+  promo_subtitle TEXT,
+  promo_link TEXT,
+  promo_image_url TEXT,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.promos (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  badge TEXT,
+  title TEXT NOT NULL,
+  subtitle TEXT,
+  link TEXT NOT NULL DEFAULT '/produits?promotions=true',
+  image_url TEXT,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- ═══════════════════════════════════════════════════════════════
+-- RBAC : les policies `*_admin_*` vérifient désormais le rôle
+-- dans public.profiles via public.is_admin() au lieu de
+-- auth.role() = 'authenticated'. Un compte authentifié qui n'a
+-- pas le rôle 'admin' ne peut plus lire/écrire les données admin.
+-- Cette table est réservée aux accès back-office ; aucun profil visiteur n'est créé.
+-- ═══════════════════════════════════════════════════════════════
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN AS $$
+SELECT EXISTS (
+  SELECT 1 FROM public.profiles
+  WHERE user_id = auth.uid() AND role = 'admin'
+);
+$$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public;
+
+-- ⚠️ MIGRATION DES DONNÉES EXISTANTES (slug) :
+-- Génère les slugs des sous-catégories déjà en base (une seule fois).
+UPDATE public.subcategories
+SET slug = lower(regexp_replace(
+  regexp_replace(unaccent(name), '[^a-zA-Z0-9]+', '-', 'g'),
+  '(^-)|(-$)', '', 'g'
+))
+WHERE slug IS NULL
+  AND EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'unaccent');
+
+UPDATE public.subcategories
+SET slug = lower(regexp_replace(
+  regexp_replace(name, '[^a-zA-Z0-9]+', '-', 'g'),
+  '(^-)|(-$)', '', 'g'
+))
+WHERE slug IS NULL;
+
+-- Contrainte d'unicité par catégorie, une fois les données backfillées.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_subcategories_category_slug
+  ON public.subcategories (category_id, slug);
+
 -- Index plein-texte pour la recherche côté serveur
 CREATE INDEX IF NOT EXISTS idx_products_search_vector
   ON public.products USING GIN (search_vector);
@@ -163,93 +221,8 @@ CREATE INDEX IF NOT EXISTS idx_products_name_trgm
 CREATE INDEX IF NOT EXISTS idx_products_brand_trgm
   ON public.products USING gin (brand gin_trgm_ops);
 
--- =====================================================
--- PRODUCT IMAGES (table normalisée au lieu de JSON)
--- =====================================================
-CREATE TABLE IF NOT EXISTS public.product_images (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  product_id UUID NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
-  url TEXT NOT NULL,
-  sort_order INTEGER DEFAULT 0,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-
 CREATE INDEX IF NOT EXISTS idx_product_images_product_sort
   ON public.product_images (product_id, sort_order);
-
--- =====================================================
--- ORDERS
--- =====================================================
-CREATE TABLE IF NOT EXISTS public.orders (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  customer_name TEXT NOT NULL,
-  customer_phone TEXT NOT NULL,
-  customer_city TEXT,
-  product_id UUID REFERENCES public.products(id) ON DELETE SET NULL,
-  product_name TEXT NOT NULL,
-  quantity INTEGER NOT NULL DEFAULT 1,
-  total_price NUMERIC NOT NULL,
-  status TEXT DEFAULT 'pending',
-  notes TEXT,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-
--- =====================================================
--- CONTACT MESSAGES
--- =====================================================
-CREATE TABLE IF NOT EXISTS public.contact_messages (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL,
-  email TEXT NOT NULL,
-  phone TEXT,
-  subject TEXT,
-  message TEXT NOT NULL,
-  is_read BOOLEAN DEFAULT false,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-
--- =====================================================
--- SITE SETTINGS
--- =====================================================
-CREATE TABLE IF NOT EXISTS public.site_settings (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  site_name TEXT NOT NULL DEFAULT 'Kissariya Cosmétiques',
-  site_description TEXT,
-  whatsapp_number TEXT,
-  phone_number TEXT,
-  email TEXT,
-  address TEXT,
-  logo_url TEXT,
-  favicon_url TEXT,
-  hero_title TEXT,
-  hero_subtitle TEXT,
-  free_shipping_min NUMERIC,
-  -- Champs de l'ancienne carte promo unique (conservés pour compatibilité).
-  promo_enabled BOOLEAN NOT NULL DEFAULT true,
-  promo_badge TEXT,
-  promo_title TEXT,
-  promo_subtitle TEXT,
-  promo_link TEXT,
-  promo_image_url TEXT,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
-);
-
--- =====================================================
--- PROMOS (publicités du hero, plusieurs possibles)
--- =====================================================
-CREATE TABLE IF NOT EXISTS public.promos (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  badge TEXT,
-  title TEXT NOT NULL,
-  subtitle TEXT,
-  link TEXT NOT NULL DEFAULT '/produits?promotions=true',
-  image_url TEXT,
-  is_active BOOLEAN NOT NULL DEFAULT true,
-  sort_order INTEGER NOT NULL DEFAULT 0,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
-);
 
 -- =====================================================
 -- STORAGE BUCKET
@@ -434,6 +407,29 @@ CREATE POLICY "images_admin_manage" ON storage.objects
   FOR ALL TO authenticated
   USING (bucket_id = 'cosmetics-images' AND public.is_admin())
   WITH CHECK (bucket_id = 'cosmetics-images' AND public.is_admin());
+
+-- =====================================================
+-- DEPLOY PUBLIC RLS POLICIES (single SQL block)
+-- =====================================================
+-- Utiliser ce bloc unique si le projet distant n'a pas encore les policies publiques.
+-- Il reste idempotent : DROP IF EXISTS + CREATE.
+DROP POLICY IF EXISTS "orders_insert_public" ON public.orders;
+CREATE POLICY "orders_insert_public"
+  ON public.orders
+  FOR INSERT
+  WITH CHECK (true);
+
+DROP POLICY IF EXISTS "contact_messages_insert_public" ON public.contact_messages;
+CREATE POLICY "contact_messages_insert_public"
+  ON public.contact_messages
+  FOR INSERT
+  WITH CHECK (true);
+
+DROP POLICY IF EXISTS "contact_messages_admin_select" ON public.contact_messages;
+CREATE POLICY "contact_messages_admin_select"
+  ON public.contact_messages
+  FOR SELECT
+  USING (public.is_admin());
 
 -- =====================================================
 -- REFRESH SCHEMA CACHE

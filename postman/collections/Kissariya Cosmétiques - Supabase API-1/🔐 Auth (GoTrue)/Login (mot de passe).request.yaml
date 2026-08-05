@@ -1,0 +1,27 @@
+$kind: http-request
+description: "Login admin. IMPORTANT : après le login, vérifiez que le compte a le rôle 'admin' dans la table public.profiles (SQL Editor Supabase), sinon les requêtes Admin renverront 403/empty."
+url: "{{supabase_url}}/auth/v1/token?grant_type=password"
+method: POST
+headers:
+  apikey: "{{anon_key}}"
+  Content-Type: application/json
+queryParams:
+  grant_type: password
+body:
+  type: json
+  content: |-
+    {
+      "email": "{{admin_email}}",
+      "password": "{{admin_password}}"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 200', () => pm.response.to.have.status(200));
+      const json = pm.response.json();
+      pm.environment.set('access_token', json.access_token);
+      pm.environment.set('refresh_token', json.refresh_token);
+      pm.environment.set('user_id', json.user?.id);
+      pm.test('Token capturé', () => pm.expect(json.access_token).to.not.be.empty);
+    language: text/javascript
+order: 2000

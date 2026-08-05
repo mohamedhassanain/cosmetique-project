@@ -1,0 +1,10 @@
+$kind: http-request
+description: Équivalent de deleteOrder().
+url: "{{supabase_url}}/rest/v1/orders?id=eq.{{order_id}}"
+method: DELETE
+headers:
+  apikey: "{{anon_key}}"
+  Authorization: Bearer {{access_token}}
+queryParams:
+  id: eq.{{order_id}}
+order: 3000

@@ -15,6 +15,8 @@ Donc avec Postman, vous n'appelez **pas l'application** mais **l'API Supabase di
 | `docs/postman-testing.md` | Ce guide |
 
 > 💡 **Méthode d'import** : les fichiers sont au format **JSON** (format d'export standard Postman). Au moment de l'import, Postman affichera **"Upgrade to v3"** (conversion automatique de JSON vers son format YAML natif) — cliquez dessus, c'est fait par Postman lui-même.
+>
+> ⚠️ Si Postman rappelle encore une ancienne requête en mémoire, rechargez la collection ou réimportez le fichier YAML pour que le body de `Créer une commande (visiteur WhatsApp)` soit bien la version locale corrigée (`product_id` doit rester à `null` si l'environnement n'a pas encore capturé de produit).
 
 ## Prérequis
 
@@ -102,6 +104,7 @@ Les autres variables (`product_id`, `order_id`, `access_token`…) seront **remp
 | Symptôme | Cause | Solution |
 |---|---|---|
 | `401 Invalid API key` | `anon_key` vide ou erronée | Vérifiez Settings → API |
+| `401` sur `POST /contact_messages` | Policy RLS publique absente sur le projet distant | Appliquez la migration SQL de `supabase/migrations/20260805_contact_messages_public_insert.sql` ou la `CREATE POLICY` équivalente depuis le SQL Editor de Supabase |
 | `403` sur route admin | Compte pas `admin` (rôle `staff`) | Exécutez le SQL de l'étape 3 |
 | Tableau vide sur route admin | RLS : `is_admin()` false | Idem ci-dessus |
 | `404 relation "X" does not exist` | Schéma pas appliqué | Exécutez `supabase/database.sql` |
@@ -116,6 +119,23 @@ La clé `service_role` **contourne toutes les policies RLS**. Si elle fuit (repo
 - Ne l'utilisez que dans des tests internes.
 - Ne la mettez **jamais** dans un fichier commité (elle est en `type: secret` dans l'environnement, mais restez prudent).
 - En production, préférez tester les routes admin avec un vrai compte admin.
+
+## Déploiement de la policy publique `contact_messages`
+
+Le schéma local contient bien la policy `contact_messages_insert_public`, mais le projet Supabase distant doit être mis à jour explicitement.
+
+1. Dans le Dashboard Supabase du projet distant, ouvrez **SQL Editor**.
+2. Exécutez la migration suivante (ou le contenu de [supabase/database.sql](supabase/database.sql) si vous voulez réappliquer tout le schéma) :
+
+```sql
+DROP POLICY IF EXISTS "contact_messages_insert_public" ON public.contact_messages;
+CREATE POLICY "contact_messages_insert_public" ON public.contact_messages FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "contact_messages_admin_select" ON public.contact_messages;
+CREATE POLICY "contact_messages_admin_select" ON public.contact_messages FOR SELECT USING (public.is_admin());
+```
+
+3. Réessayez ensuite la requête **Public → Envoyer un message de contact**.
 
 ## Astuce : lancer toute la collection en une fois
 

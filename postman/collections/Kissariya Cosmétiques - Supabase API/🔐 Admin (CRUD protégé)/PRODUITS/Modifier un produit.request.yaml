@@ -1,0 +1,28 @@
+$kind: http-request
+description: Équivalent de updateProduct(). Ne modifier QUE les champs voulus.
+url: "{{supabase_url}}/rest/v1/products?id=eq.{{product_id}}"
+method: PATCH
+headers:
+  apikey: "{{anon_key}}"
+  Authorization: Bearer {{access_token}}
+  Content-Type: application/json
+  Prefer: return=representation
+queryParams:
+  id: eq.{{product_id}}
+body:
+  type: json
+  content: |-
+    {
+      "price": 129,
+      "is_promotion": true,
+      "stock_quantity": 30
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 200', () => pm.response.to.have.status(200));
+      const json = pm.response.json();
+      const p = Array.isArray(json) ? json[0] : json;
+      pm.test('Produit mis à jour', () => pm.expect(p.id).to.eql(pm.environment.get('product_id')));
+    language: text/javascript
+order: 3000

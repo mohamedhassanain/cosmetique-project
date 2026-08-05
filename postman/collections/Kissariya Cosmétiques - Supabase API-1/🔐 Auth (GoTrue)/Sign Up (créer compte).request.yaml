@@ -1,0 +1,26 @@
+$kind: http-request
+description: Crée un utilisateur. Réponse 200 = compte existant (le signup renvoie alors le message 'User already registered'). 200 = succès.
+url: "{{supabase_url}}/auth/v1/signup"
+method: POST
+headers:
+  apikey: "{{anon_key}}"
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "email": "{{admin_email}}",
+      "password": "{{admin_password}}"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 200', () => pm.response.to.have.status(200));
+      const json = pm.response.json();
+      if (json.id) {
+        pm.environment.set('user_id', json.id);
+        pm.environment.set('access_token', json.access_token);
+        pm.environment.set('refresh_token', json.refresh_token);
+      }
+    language: text/javascript
+order: 1000

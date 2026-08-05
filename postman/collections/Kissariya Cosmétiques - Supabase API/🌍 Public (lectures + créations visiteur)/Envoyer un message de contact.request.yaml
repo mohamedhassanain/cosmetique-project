@@ -1,0 +1,19 @@
+$kind: http-request
+description: INSERT public (policy contact_messages_insert_public).
+url: "{{supabase_url}}/rest/v1/contact_messages"
+method: POST
+headers:
+  apikey: "{{anon_key}}"
+  Content-Type: application/json
+  Prefer: return=representation
+body:
+  type: json
+  content: |-
+    {
+      "name": "Test Postman",
+      "email": "test@example.com",
+      "phone": "+212600000000",
+      "subject": "Question produit",
+      "message": "Bonjour, ce produit est-il disponible à Casablanca ?"
+    }
+order: 10000

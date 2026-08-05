@@ -1,0 +1,18 @@
+$kind: http-request
+description: Correspond aux lignes gérées par replaceProductImages() dans le code.
+url: "{{supabase_url}}/rest/v1/product_images"
+method: POST
+headers:
+  apikey: "{{anon_key}}"
+  Authorization: Bearer {{access_token}}
+  Content-Type: application/json
+  Prefer: return=representation
+body:
+  type: json
+  content: |-
+    {
+      "product_id": "{{product_id}}",
+      "url": "https://images.unsplash.com/photo-1556228720-195a672e8a03?w=800",
+      "sort_order": 0
+    }
+order: 4000

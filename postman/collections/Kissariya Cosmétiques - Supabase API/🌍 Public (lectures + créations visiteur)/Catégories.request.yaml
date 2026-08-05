@@ -1,0 +1,17 @@
+$kind: http-request
+description: Équivalent de fetchCategories().
+url: "{{supabase_url}}/rest/v1/categories?select=*&order=sort_order.asc"
+method: GET
+headers:
+  apikey: "{{anon_key}}"
+queryParams:
+  select: "*"
+  order: sort_order.asc
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 200', () => pm.response.to.have.status(200));
+      const json = pm.response.json();
+      if (json.length > 0) pm.environment.set('category_id', json[0].id);
+    language: text/javascript
+order: 5000

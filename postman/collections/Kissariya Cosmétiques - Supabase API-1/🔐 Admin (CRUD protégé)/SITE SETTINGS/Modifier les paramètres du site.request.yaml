@@ -1,0 +1,20 @@
+$kind: http-request
+description: Équivalent de updateSiteSettings(). Récupérez d'abord settings_id via la requête 'Site settings (public)' (ajoutez-y un test pour capturer l'id).
+url: "{{supabase_url}}/rest/v1/site_settings?id=eq.{{settings_id}}"
+method: PATCH
+headers:
+  apikey: "{{anon_key}}"
+  Authorization: Bearer {{access_token}}
+  Content-Type: application/json
+  Prefer: return=representation
+queryParams:
+  id: eq.{{settings_id}}
+body:
+  type: json
+  content: |-
+    {
+      "free_shipping_min": 300,
+      "hero_title": "Votre Beauté, Notre Passion",
+      "whatsapp_number": "+212600000000"
+    }
+order: 1000

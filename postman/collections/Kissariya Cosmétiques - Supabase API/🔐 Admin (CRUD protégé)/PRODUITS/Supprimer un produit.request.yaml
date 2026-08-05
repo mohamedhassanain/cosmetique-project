@@ -1,0 +1,14 @@
+$kind: http-request
+description: Supprime le produit (les product_images partent en cascade). ⚠️ Irréversible.
+url: "{{supabase_url}}/rest/v1/products?id=eq.{{product_id}}"
+method: DELETE
+headers:
+  apikey: "{{anon_key}}"
+  Authorization: Bearer {{access_token}}
+queryParams:
+  id: eq.{{product_id}}
+scripts:
+  - type: afterResponse
+    code: pm.test('Status 204', () => pm.response.to.have.status(204));
+    language: text/javascript
+order: 5000

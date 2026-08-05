@@ -1,0 +1,19 @@
+$kind: http-request
+description: Équivalent de updateCategory().
+url: "{{supabase_url}}/rest/v1/categories?id=eq.{{category_id}}"
+method: PATCH
+headers:
+  apikey: "{{anon_key}}"
+  Authorization: Bearer {{access_token}}
+  Content-Type: application/json
+  Prefer: return=representation
+queryParams:
+  id: eq.{{category_id}}
+body:
+  type: json
+  content: |-
+    {
+      "description": "Protection solaire SPF 30+ et 50+",
+      "sort_order": 9
+    }
+order: 2000

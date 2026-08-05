@@ -1,0 +1,17 @@
+$kind: http-request
+description: Équivalent de fetchAllPromos().
+url: "{{supabase_url}}/rest/v1/promos?select=*&order=sort_order.asc"
+method: GET
+headers:
+  apikey: "{{anon_key}}"
+  Authorization: Bearer {{access_token}}
+queryParams:
+  select: "*"
+  order: sort_order.asc
+scripts:
+  - type: afterResponse
+    code: |-
+      const json = pm.response.json();
+      if (json.length > 0) pm.environment.set('promo_id', json[0].id);
+    language: text/javascript
+order: 1000

@@ -1,0 +1,3 @@
+$kind: collection
+description: Endpoints d'authentification Supabase Auth (auth/v1). Le login remplit automatiquement access_token, refresh_token et user_id utilisés par toutes les requêtes admin.
+order: 1000

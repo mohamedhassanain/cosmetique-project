@@ -1,0 +1,10 @@
+$kind: http-request
+description: ⚠️ Supprime en cascade les sous-catégories. Les produits gardent category_id=NULL (ON DELETE SET NULL).
+url: "{{supabase_url}}/rest/v1/categories?id=eq.{{category_id}}"
+method: DELETE
+headers:
+  apikey: "{{anon_key}}"
+  Authorization: Bearer {{access_token}}
+queryParams:
+  id: eq.{{category_id}}
+order: 6000
