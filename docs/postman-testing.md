@@ -10,11 +10,11 @@ Donc avec Postman, vous n'appelez **pas l'application** mais **l'API Supabase di
 
 | Fichier | Contenu |
 |---|---|
-| `postman/environments/Kissariya - Supabase.postman_environment.yaml` | Variables d'environnement (URL, clés anon pré-remplies, IDs capturés auto) |
-| `postman/collections/Kissariya - Supabase API.postman_collection.yaml` | 30+ requêtes avec tests automatiques (format YAML v3 requis par Postman Local Mode) |
+| `postman/environments/Kissariya - Supabase.postman_environment.json` | Variables d'environnement (URL + clé anon pré-remplies, IDs capturés auto) |
+| `postman/collections/Kissariya - Supabase API.postman_collection.json` | 35+ requêtes avec tests automatiques |
 | `docs/postman-testing.md` | Ce guide |
 
-> ⚠️ **Important** : Postman Local Mode **ne supporte plus le format JSON** pour les collections/environnements. Seuls les fichiers `.yaml` (v3) sont utilisés. C'est ce qui causait le bandeau rouge "Upgrade files → Upgrade to v3" dans ta capture d'écran.
+> 💡 **Méthode d'import** : les fichiers sont au format **JSON** (format d'export standard Postman). Au moment de l'import, Postman affichera **"Upgrade to v3"** (conversion automatique de JSON vers son format YAML natif) — cliquez dessus, c'est fait par Postman lui-même.
 
 ## Prérequis
 
@@ -27,9 +27,10 @@ Donc avec Postman, vous n'appelez **pas l'application** mais **l'API Supabase di
 ## Étape 1 — Importer
 
 1. Postman → **Import** → sélectionnez :
-   - `postman/environments/Kissariya - Supabase.postman_environment.yaml`
-   - `postman/collections/Kissariya - Supabase API.postman_collection.yaml`
-2. En haut à droite, sélectionnez l'environnement **"Kissariya - Supabase"** (dropdown Environments).
+   - `postman/environments/Kissariya - Supabase.postman_environment.json`
+   - `postman/collections/Kissariya - Supabase API.postman_collection.json`
+2. Quand Postman affiche **"Upgrade to v3"** (conversion vers son format interne), cliquez dessus.
+3. En haut à droite, sélectionnez l'environnement **"Kissariya - Supabase"** (dropdown Environments).
 
 ## Étape 2 — Renseigner l'environnement
 
