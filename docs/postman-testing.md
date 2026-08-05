@@ -10,9 +10,11 @@ Donc avec Postman, vous n'appelez **pas l'application** mais **l'API Supabase di
 
 | Fichier | Contenu |
 |---|---|
-| `postman/environments/Kissariya - Supabase.postman_environment.json` | Variables d'environnement (URL, clés, IDs capturés auto) |
-| `postman/collections/Kissariya - Supabase API.postman_collection.json` | 30+ requêtes avec tests automatiques |
+| `postman/environments/Kissariya - Supabase.postman_environment.yaml` | Variables d'environnement (URL, clés anon pré-remplies, IDs capturés auto) |
+| `postman/collections/Kissariya - Supabase API.postman_collection.yaml` | 30+ requêtes avec tests automatiques (format YAML v3 requis par Postman Local Mode) |
 | `docs/postman-testing.md` | Ce guide |
+
+> ⚠️ **Important** : Postman Local Mode **ne supporte plus le format JSON** pour les collections/environnements. Seuls les fichiers `.yaml` (v3) sont utilisés. C'est ce qui causait le bandeau rouge "Upgrade files → Upgrade to v3" dans ta capture d'écran.
 
 ## Prérequis
 
@@ -25,21 +27,20 @@ Donc avec Postman, vous n'appelez **pas l'application** mais **l'API Supabase di
 ## Étape 1 — Importer
 
 1. Postman → **Import** → sélectionnez :
-   - `postman/environments/Kissariya - Supabase.postman_environment.json`
-   - `postman/collections/Kissariya - Supabase API.postman_collection.json`
+   - `postman/environments/Kissariya - Supabase.postman_environment.yaml`
+   - `postman/collections/Kissariya - Supabase API.postman_collection.yaml`
 2. En haut à droite, sélectionnez l'environnement **"Kissariya - Supabase"** (dropdown Environments).
 
 ## Étape 2 — Renseigner l'environnement
 
-Cliquez sur l'icône **"eye"** (ou *Environments* → *Kissariya - Supabase*) et remplissez :
+L'URL Supabase et la clé anon sont **déjà pré-remplies** (lues depuis le `.env` du projet). Il ne reste que 2 valeurs à saisir :
 
 | Variable | Valeur |
 |---|---|
-| `supabase_url` | `https://VOTRE-PROJET.supabase.co` |
-| `anon_key` | Clé *anon public* (onglet API) |
-| `service_role_key` | Clé *service_role* (optionnel, pour tests avancés) |
-| `admin_email` | Email d'un compte admin existant |
+| `admin_email` | Email de ton compte admin |
 | `admin_password` | Mot de passe de ce compte |
+
+Cliquez sur l'icône **"eye"** (ou *Environments* → *Kissariya - Supabase*) pour modifier ces valeurs.
 
 Les autres variables (`product_id`, `order_id`, `access_token`…) seront **remplies automatiquement** par les scripts de test.
 

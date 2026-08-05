@@ -1,2 +1,3 @@
-name: Globals
+# This is a Postman Globals file (YAML v3).
+type: globals
 values: []
