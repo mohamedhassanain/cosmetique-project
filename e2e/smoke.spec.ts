@@ -20,6 +20,12 @@ test('la page /produits rend sans écran vide', async ({ page }) => {
   await expect(page.locator('body')).not.toBeEmpty();
 });
 
+test('sans session, /admin redirige vers /auth (et non vers l’accueil)', async ({ page }) => {
+  await page.goto('/admin');
+  // Régression : l'accès admin ne doit JAMAIS rebondir silencieusement vers "/".
+  await expect(page).toHaveURL(/\/auth/);
+});
+
 test('le panier s’ouvre via le bouton flottant (aria-label)', async ({ page }) => {
   await page.goto('/');
   const cartButton = page.getByRole('button', { name: 'Ouvrir le panier' });

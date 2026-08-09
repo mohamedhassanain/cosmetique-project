@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/providers/auth-utils';
 import { useProducts } from '@/hooks/useProducts';
-import { useOrders } from '@/hooks/useOrders';
+import { useOrders, useOrderStats } from '@/hooks/useOrders';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Package, ShoppingCart, Tags, Settings, Plus, LogOut, Sparkles, TrendingUp, Eye, Flower2, Megaphone } from 'lucide-react';
@@ -22,7 +22,8 @@ function firstImage(imageUrl: string | null | undefined): string | null {
 export default function AdminDashboard() {
   const { user, loading: authLoading, signOut } = useAuth();
   const { products, featuredProducts, promotionProducts } = useProducts();
-  const { pendingOrders } = useOrders();
+  const { orders: recentOrders } = useOrders({ page: 1, pageSize: 20, status: 'pending' });
+  const { pendingCount } = useOrderStats();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -96,7 +97,7 @@ export default function AdminDashboard() {
           </Card>
           <Card className="border-pink-100">
             <CardHeader className="pb-2"><CardDescription className="flex items-center gap-2 text-pink-500"><ShoppingCart className="h-4 w-4" />Commandes en attente</CardDescription></CardHeader>
-            <CardContent><p className="text-3xl font-bold text-pink-900">{pendingOrders.length}</p></CardContent>
+            <CardContent><p className="text-3xl font-bold text-pink-900">{pendingCount}</p></CardContent>
           </Card>
         </div>
 
@@ -125,18 +126,26 @@ export default function AdminDashboard() {
           </Card>
 
           <Card className="border-pink-100">
-            <CardHeader><CardTitle className="text-pink-900 text-lg">Commandes récentes</CardTitle></CardHeader>
+            <CardHeader>
+              <CardTitle className="text-pink-900 text-lg">Commandes récentes</CardTitle>
+              <CardDescription className="flex items-center gap-2 text-pink-500">
+                <ShoppingCart className="h-4 w-4" /> 20 dernières commandes en attente
+              </CardDescription>
+            </CardHeader>
             <CardContent className="space-y-3">
-              {pendingOrders.slice(0, 5).map(o => (
-                <div key={o.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-pink-50">
-                  <div>
-                    <p className="font-medium text-pink-900 text-sm">{o.product_name}</p>
-                    <p className="text-xs text-pink-500">{o.customer_name} - {o.total_price} DH</p>
+              {recentOrders.length > 0 ? (
+                recentOrders.map(o => (
+                  <div key={o.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-pink-50">
+                    <div>
+                      <p className="font-medium text-pink-900 text-sm">{o.product_name}</p>
+                      <p className="text-xs text-pink-500">{o.customer_name} - {o.total_price} DH</p>
+                    </div>
+                    <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">{o.status}</span>
                   </div>
-                  <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">{o.status}</span>
-                </div>
-              ))}
-              {pendingOrders.length === 0 && <p className="text-pink-400 text-sm text-center py-8">Aucune commande en attente</p>}
+                ))
+              ) : (
+                <p className="text-pink-400 text-sm text-center py-8">Aucune commande</p>
+              )}
             </CardContent>
           </Card>
         </div>

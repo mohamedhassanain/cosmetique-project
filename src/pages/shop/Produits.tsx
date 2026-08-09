@@ -23,6 +23,7 @@ export default function Produits() {
   const { getShareData } = useProductActions();
 
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(searchParams.get('categorie') || null);
   const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(searchParams.get('sous-categorie') || null);
   const [selectedPromo, setSelectedPromo] = useState(searchParams.get('promotions') === 'true');
@@ -33,8 +34,18 @@ export default function Produits() {
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
   const [shareData, setShareData] = useState({ url: '', title: '' });
 
+  // Debounce (300 ms) : la recherche publique ne déclenche plus un appel Supabase
+  // à chaque frappe clavier, seulement après une pause de saisie.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
   const filters: ProductFilters = {
-    search,
+    search: debouncedSearch,
     category_slug: selectedCategory,
     subcategory_slug: selectedSubcategory,
     promo: selectedPromo,
@@ -56,7 +67,7 @@ export default function Produits() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, selectedCategory, selectedSubcategory, selectedPromo, selectedFeatured, sortBy]);
+  }, [debouncedSearch, selectedCategory, selectedSubcategory, selectedPromo, selectedFeatured, sortBy]);
 
   const handleShare = (product: Product) => {
     setShareData(getShareData(product));

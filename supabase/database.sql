@@ -4,7 +4,8 @@
 -- TOUT le fichier est idempotent (rejouable sans erreur) :
 --   * tables : CREATE TABLE IF NOT EXISTS
 --   * triggers / policies : DROP IF EXISTS + CREATE
---   * pas de blocs DO $$ (évite les erreurs "unterminated dollar-quoted string")
+--   * un seul bloc DO $$ (vérifie l'existence de l'ancienne table profiles
+--     avant suppression, pour être rejouable même quand elle est déjà absente)
 -- =====================================================
 
 -- =====================================================
@@ -14,21 +15,30 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- Nécessaire pour normaliser les accents lors du backfill des slugs de sous-catégories.
 CREATE EXTENSION IF NOT EXISTS "unaccent";
 
+-- ═══════════════════════════════════════════════════════════════
+-- MIGRATION : SUPPRESSION DÉFINITIVE DE L'ANCIENNE TABLE PROFILES
+-- Modèle d'accès : « compte inséré dans Supabase Auth = admin ».
+-- Toute trace de l'ancien système de profils (table, RPC, trigger)
+-- est supprimée ici — y compris sur les bases déjà déployées.
+-- ═══════════════════════════════════════════════════════════════
+DROP FUNCTION IF EXISTS public.is_admin_user();
+
+-- Suppression sûre de l'ancien trigger : si la relation profiles n'existe
+-- pas (déjà supprimée), DROP TRIGGER lèverait une erreur 42P01. On vérifie
+-- d'abord l'existence de la table dans le catalogue système.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_class WHERE relname = 'profiles' AND relnamespace = 'public'::regnamespace) THEN
+    DROP TRIGGER IF EXISTS trg_profiles_updated_at ON public.profiles;
+    DROP TABLE IF EXISTS public.profiles;
+  END IF;
+END $$;
+
 -- =====================================================
 -- SCRIPT UNIQUE : CRÉATION DE TOUTES LES TABLES
 -- =====================================================
 -- Ce bloc est le code unique à exécuter pour créer les tables principales
 -- du schéma. Il est idempotent : les tables déjà présentes ne sont pas recréées.
-CREATE TABLE IF NOT EXISTS public.profiles (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
-  full_name TEXT,
-  phone TEXT,
-  role TEXT NOT NULL DEFAULT 'staff' CHECK (role IN ('admin', 'staff')),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
 CREATE TABLE IF NOT EXISTS public.categories (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
@@ -154,19 +164,14 @@ CREATE TABLE IF NOT EXISTS public.promos (
 );
 
 -- ═══════════════════════════════════════════════════════════════
--- RBAC : les policies `*_admin_*` vérifient désormais le rôle
--- dans public.profiles via public.is_admin() au lieu de
--- auth.role() = 'authenticated'. Un compte authentifié qui n'a
--- pas le rôle 'admin' ne peut plus lire/écrire les données admin.
--- Cette table est réservée aux accès back-office ; aucun profil visiteur n'est créé.
+-- MODÈLE D'ACCÈS : « compte inséré dans Supabase Auth = admin ».
+-- Toute session authentifiée est admin. public.is_admin() repose
+-- donc sur auth.role() — aucune table de profils n'est nécessaire.
 -- ═══════════════════════════════════════════════════════════════
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS BOOLEAN AS $$
-SELECT EXISTS (
-  SELECT 1 FROM public.profiles
-  WHERE user_id = auth.uid() AND role = 'admin'
-);
-$$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public;
+SELECT auth.uid() IS NOT NULL;
+$$ LANGUAGE sql STABLE SET search_path = public;
 
 -- ⚠️ MIGRATION DES DONNÉES EXISTANTES (slug) :
 -- Génère les slugs des sous-catégories déjà en base (une seule fois).
@@ -224,6 +229,32 @@ CREATE INDEX IF NOT EXISTS idx_products_brand_trgm
 CREATE INDEX IF NOT EXISTS idx_product_images_product_sort
   ON public.product_images (product_id, sort_order);
 
+-- Index pour la pagination admin des commandes (tri par date décroissante)
+CREATE INDEX IF NOT EXISTS idx_orders_created_at
+  ON public.orders (created_at DESC);
+
+-- Index pour le comptage/dashboard des commandes en attente
+CREATE INDEX IF NOT EXISTS idx_orders_status_created
+  ON public.orders (status, created_at DESC);
+
+-- Index pour le tri admin des messages de contact
+CREATE INDEX IF NOT EXISTS idx_contact_messages_created_at
+  ON public.contact_messages (created_at DESC);
+
+-- ──────────────────────────────────────────────
+-- CONTRAINTES D'INTÉGRITÉ (idempotent : DROP + ADD)
+-- Empêchent des INSERT aberrants via les tables publiques
+-- (quantité 0/négative, prix négatif, nom de produit vide).
+-- ──────────────────────────────────────────────
+ALTER TABLE public.orders DROP CONSTRAINT IF EXISTS orders_quantity_positive;
+ALTER TABLE public.orders ADD CONSTRAINT orders_quantity_positive CHECK (quantity >= 1);
+
+ALTER TABLE public.orders DROP CONSTRAINT IF EXISTS orders_total_price_non_negative;
+ALTER TABLE public.orders ADD CONSTRAINT orders_total_price_non_negative CHECK (total_price >= 0);
+
+ALTER TABLE public.orders DROP CONSTRAINT IF EXISTS orders_product_name_not_empty;
+ALTER TABLE public.orders ADD CONSTRAINT orders_product_name_not_empty CHECK (char_length(product_name) > 0);
+
 -- =====================================================
 -- STORAGE BUCKET
 -- =====================================================
@@ -273,16 +304,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SET search_path = public;
 
--- CREATE TABLE IF NOT EXISTS ne modifie pas une table déjà déployée.
--- Cette instruction applique aussi le défaut sûr aux environnements existants.
-ALTER TABLE public.profiles ALTER COLUMN role SET DEFAULT 'staff';
-
 -- =====================================================
 -- UPDATED_AT TRIGGERS (idempotent : DROP + CREATE)
 -- =====================================================
-DROP TRIGGER IF EXISTS trg_profiles_updated_at ON public.profiles;
-CREATE TRIGGER trg_profiles_updated_at BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
 DROP TRIGGER IF EXISTS trg_categories_updated_at ON public.categories;
 CREATE TRIGGER trg_categories_updated_at BEFORE UPDATE ON public.categories FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
@@ -304,7 +328,6 @@ DROP FUNCTION IF EXISTS public.handle_new_user();
 -- =====================================================
 -- ROW LEVEL SECURITY
 -- =====================================================
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.subcategories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
@@ -317,12 +340,6 @@ ALTER TABLE public.promos ENABLE ROW LEVEL SECURITY;
 -- =====================================================
 -- RLS POLICIES (idempotent : DROP + CREATE)
 -- =====================================================
--- profiles : table interne de contrôle d'accès du back-office.
--- Aucune policy client : les visiteurs et comptes authentifiés n'y accèdent pas.
-DROP POLICY IF EXISTS "profiles_select_own" ON public.profiles;
-DROP POLICY IF EXISTS "profiles_insert_own" ON public.profiles;
-DROP POLICY IF EXISTS "profiles_update_own" ON public.profiles;
-
 -- categories
 DROP POLICY IF EXISTS "categories_public_select" ON public.categories;
 CREATE POLICY "categories_public_select" ON public.categories FOR SELECT USING (true);
@@ -349,7 +366,15 @@ CREATE POLICY "products_admin_manage" ON public.products FOR ALL USING (public.i
 
 -- product_images
 DROP POLICY IF EXISTS "product_images_public_select" ON public.product_images;
-CREATE POLICY "product_images_public_select" ON public.product_images FOR SELECT USING (true);
+-- SELECT public limité aux produits ACTIFS : les images des produits masqués
+-- ne sont plus exposées (cohérent avec la policy de lecture des produits).
+CREATE POLICY "product_images_public_select" ON public.product_images FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.products p
+      WHERE p.id = product_id AND p.is_active = true
+    )
+  );
 
 DROP POLICY IF EXISTS "product_images_admin_manage" ON public.product_images;
 CREATE POLICY "product_images_admin_manage" ON public.product_images FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());

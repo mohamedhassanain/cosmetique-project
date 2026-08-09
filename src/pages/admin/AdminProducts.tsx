@@ -57,8 +57,12 @@ export default function AdminProducts() {
 
   const handleDelete = async () => {
     if (deleteId) {
-      await deleteProduct.mutateAsync(deleteId);
-      setDeleteId(null);
+      try {
+        await deleteProduct.mutateAsync(deleteId);
+        setDeleteId(null);
+      } catch {
+        // L'erreur est déjà affichée par le hook (toast) — on évite un rejet non géré.
+      }
     }
   };
 
@@ -78,15 +82,19 @@ export default function AdminProducts() {
   const handleCatSubmit = async () => {
     if (!categoryName.trim()) { toast.error('Nom requis'); return; }
     const slug = categorySlug.trim() || categoryName.toLowerCase().normalize('NFD').replaceAll(/[\u0300-\u036f]/g, '').replaceAll(/[^a-z0-9]+/g, '-').replaceAll(/(^-)|(-$)/g, '');
-    if (editingCategory) {
-      await updateCategory.mutateAsync({ id: editingCategory.id, name: categoryName.trim(), slug });
-    } else {
-      await createCategory.mutateAsync({ name: categoryName.trim(), slug });
+    try {
+      if (editingCategory) {
+        await updateCategory.mutateAsync({ id: editingCategory.id, name: categoryName.trim(), slug });
+      } else {
+        await createCategory.mutateAsync({ name: categoryName.trim(), slug });
+      }
+      setCatDialogOpen(false);
+      setCategoryName('');
+      setCategorySlug('');
+      setEditingCategory(null);
+    } catch {
+      // L'erreur est déjà affichée par le hook (toast) — on évite un rejet non géré.
     }
-    setCatDialogOpen(false);
-    setCategoryName('');
-    setCategorySlug('');
-    setEditingCategory(null);
   };
 
   return (
@@ -267,7 +275,15 @@ export default function AdminProducts() {
           <AlertDialogDescription>Les sous-catégories seront aussi supprimées.</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction onClick={async () => { if (deleteCatId) { await deleteCategory.mutateAsync(deleteCatId); setDeleteCatId(null); } }} className="bg-red-500">Supprimer</AlertDialogAction>
+            <AlertDialogAction onClick={async () => {
+              if (!deleteCatId) return;
+              try {
+                await deleteCategory.mutateAsync(deleteCatId);
+                setDeleteCatId(null);
+              } catch {
+                // L'erreur est déjà affichée par le hook (toast).
+              }
+            }} className="bg-red-500">Supprimer</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -284,14 +300,18 @@ function CategoryAccordionItem({ category, onEdit, onDelete }: { category: { id:
 
   const handleSubSubmit = async () => {
     if (!subName.trim()) { toast.error('Nom requis'); return; }
-    if (editingSub) {
-      await updateSubcategory.mutateAsync({ id: editingSub.id, name: subName.trim() });
-    } else {
-      await createSubcategory.mutateAsync({ catId: category.id, name: subName.trim() });
+    try {
+      if (editingSub) {
+        await updateSubcategory.mutateAsync({ id: editingSub.id, name: subName.trim() });
+      } else {
+        await createSubcategory.mutateAsync({ catId: category.id, name: subName.trim() });
+      }
+      setSubDialogOpen(false);
+      setSubName('');
+      setEditingSub(null);
+    } catch {
+      // L'erreur est déjà affichée par le hook (toast).
     }
-    setSubDialogOpen(false);
-    setSubName('');
-    setEditingSub(null);
   };
 
   return (
@@ -342,7 +362,15 @@ function CategoryAccordionItem({ category, onEdit, onDelete }: { category: { id:
           <AlertDialogHeader><AlertDialogTitle>Supprimer ?</AlertDialogTitle></AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction onClick={async () => { if (deleteSubId) { await deleteSubcategory.mutateAsync(deleteSubId); setDeleteSubId(null); } }} className="bg-red-500">Supprimer</AlertDialogAction>
+            <AlertDialogAction onClick={async () => {
+              if (!deleteSubId) return;
+              try {
+                await deleteSubcategory.mutateAsync(deleteSubId);
+                setDeleteSubId(null);
+              } catch {
+                // L'erreur est déjà affichée par le hook (toast).
+              }
+            }} className="bg-red-500">Supprimer</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

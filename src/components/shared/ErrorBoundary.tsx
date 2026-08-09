@@ -1,4 +1,5 @@
 import { Component, ReactNode } from 'react';
+import * as Sentry from '@sentry/react';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -20,7 +21,11 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   componentDidCatch(error: unknown, info: unknown) {
+    // Remonte le crash vers Sentry (no-op si le DSN n'est pas configuré).
     console.error('ErrorBoundary caught an error:', error, info);
+    Sentry.captureException(error, {
+      extra: { componentStack: info as { componentStack?: string } },
+    });
   }
 
   private handleReload = () => {

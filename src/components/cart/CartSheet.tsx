@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { formatWhatsAppNumber } from '@/lib/utils';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
-import { supabase } from '@/integrations/supabase/client';
+import { createOrder } from '@/services/order.service';
 
 export function CartSheet() {
   const { items, totalItems, totalPrice, updateQuantity, removeFromCart, clearCart } = useCart();
@@ -21,22 +21,24 @@ export function CartSheet() {
     orderLockRef.current = true;
     const whatsappNumber = settings?.whatsapp_number || '+212600000000';
 
-    // Save order to database for admin
     try {
-      await supabase.from('orders').insert({
-        product_name: items.map(i => `${i.name} (x${i.quantity})`).join(', '),
-        customer_name: 'En attente',
-        customer_phone: '',
-        quantity: items.reduce((s, i) => s + i.quantity, 0),
-        total_price: totalPrice,
-        status: 'pending',
-        notes: items.map(i => `${i.name} x${i.quantity} - ${i.price * i.quantity} DH`).join(' | '),
-      });
-    } catch (err) {
-      console.error('Failed to save order:', err);
-    }
+      // Sauvegarde de la commande pour l'admin (INSERT `orders` public).
+      // Échec non bloquant : l'utilisateur part quand même sur WhatsApp.
+      try {
+        await createOrder({
+          product_name: items.map(i => `${i.name} (x${i.quantity})`).join(', '),
+          customer_name: 'En attente',
+          customer_phone: '',
+          quantity: items.reduce((s, i) => s + i.quantity, 0),
+          total_price: totalPrice,
+          status: 'pending',
+          notes: items.map(i => `${i.name} x${i.quantity} - ${i.price * i.quantity} DH`).join(' | '),
+        });
+      } catch (err) {
+        console.error('Failed to save order:', err);
+      }
 
-    const message = `Bonjour! Je souhaite commander les produits suivants :
+      const message = `Bonjour! Je souhaite commander les produits suivants :
 
 ${items.map(item => `• *${item.name}* (x${item.quantity}) - ${item.price * item.quantity} DH`).join('\n')}
 
@@ -44,10 +46,14 @@ ${items.map(item => `• *${item.name}* (x${item.quantity}) - ${item.price * ite
 
 Pouvez-vous confirmer la disponibilité?`;
 
-    const whatsappUrl = `https://wa.me/${formatWhatsAppNumber(whatsappNumber)}?text=${encodeURIComponent(message)}`;
-    globalThis.open(whatsappUrl, '_blank');
-    clearCart();
-    orderLockRef.current = false;
+      const whatsappUrl = `https://wa.me/${formatWhatsAppNumber(whatsappNumber)}?text=${encodeURIComponent(message)}`;
+      globalThis.open(whatsappUrl, '_blank');
+      clearCart();
+    } finally {
+      // Le verrou est TOUJOURS relâché, même en cas d'erreur inattendue :
+      // sans ce finally, le bouton « Commander » resterait bloqué après un échec.
+      orderLockRef.current = false;
+    }
   };
 
   return (
