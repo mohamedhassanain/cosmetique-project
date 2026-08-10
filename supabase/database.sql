@@ -98,6 +98,16 @@ CREATE TABLE IF NOT EXISTS public.products (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- ⚠️ SYNCHRONISATION DES BASES DÉJÀ DÉPLOYÉES (idempotent) :
+-- `CREATE TABLE IF NOT EXISTS` n'ajoute JAMAIS de colonne à une table existante.
+-- Sur les bases créées avant l'introduction des variantes responsive, ces
+-- colonnes manquent → PostgREST renvoie une erreur 400
+-- (« column products.image_url_400 does not exist ») sur les requêtes admin
+-- (liste, création, édition d'un produit). On les ajoute donc ici pour que
+-- rejouer database.sql répare les déploiements existants sans perte de données.
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS image_url_400 TEXT;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS image_url_800 TEXT;
+
 CREATE TABLE IF NOT EXISTS public.product_images (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   product_id UUID NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
