@@ -23,7 +23,6 @@ const AdminCategories = lazy(() => import("./pages/admin/AdminCategories"));
 const AdminOrders = lazy(() => import("./pages/admin/AdminOrders"));
 const AdminSettings = lazy(() => import("./pages/admin/AdminSettings"));
 const AdminPromos = lazy(() => import("./pages/admin/AdminPromos"));
-const AdminUsers = lazy(() => import("./pages/admin/AdminUsers"));
 const Produits = lazy(() => import("./pages/shop/Produits"));
 const ProduitDetail = lazy(() => import("./pages/shop/ProduitDetail"));
 const NotFound = lazy(() => import("./pages/errors/NotFound"));
@@ -57,7 +56,9 @@ const App = () => (
                   <Route path="/produits" element={<Produits />} />
                   <Route path="/produit/:slug" element={<ProduitDetail />} />
 
-                  {/* Authentification (admin) */}
+                  {/* Authentification (admin) — connexion email + mot de passe */}
+                  <Route path="/admin/login" element={<Auth />} />
+                  {/* Ancienne URL conservée pour compatibilité — redirige vers /admin/login */}
                   <Route path="/auth" element={<Auth />} />
 
                   {/* Pages admin — protégées par RequireAdmin (connecté + is_admin) */}
@@ -122,15 +123,6 @@ const App = () => (
                     element={
                       <RequireAdmin>
                         <AdminPromos />
-                      </RequireAdmin>
-                    }
-                  />
-
-                  <Route
-                    path="/admin/administrateurs"
-                    element={
-                      <RequireAdmin>
-                        <AdminUsers />
                       </RequireAdmin>
                     }
                   />

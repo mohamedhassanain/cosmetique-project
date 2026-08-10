@@ -61,7 +61,7 @@ export default function AdminProductForm() {
   const { subcategories } = useSubcategories(categoryId || undefined);
 
   useEffect(() => {
-    if (!authLoading && !user) navigate('/auth');
+    if (!authLoading && !user) navigate('/admin/login');
     else if (!authLoading && !isAdmin) navigate('/acces-refuse');
   }, [user, isAdmin, authLoading, navigate]);
 

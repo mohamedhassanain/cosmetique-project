@@ -3,9 +3,11 @@ import { ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 /**
- * Page « Accès refusé » — affichée quand un utilisateur connecté
- * mais NON administrateur tente d'ouvrir une route /admin.
- * La sécurité réelle est assurée par RLS côté Supabase.
+ * Page « Accès refusé » — affichée en dernier recours quand un visiteur
+ * qui n'est pas connecté tente d'ouvrir une route /admin sans passer par
+ * la redirection de RequireAdmin. Dans le modèle actuel (authentifié =
+ * admin), ce cas ne devrait pas se produire ; la sécurité réelle est
+ * assurée par RLS côté Supabase.
  */
 const AccesRefuse = () => {
   return (

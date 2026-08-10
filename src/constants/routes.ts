@@ -11,7 +11,7 @@ export const ROUTES = {
     `/produits?categorie=${categorySlug}&sous-categorie=${subName.toLowerCase()}`,
   productsPromotions: "/produits?promotions=true",
   productsFeatured: "/produits?featured=true",
-  auth: "/auth",
+  adminLogin: "/admin/login",
   admin: "/admin",
   adminProducts: "/admin/produits",
   adminProductNew: "/admin/produits/nouveau",

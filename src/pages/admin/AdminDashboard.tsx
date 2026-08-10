@@ -5,7 +5,7 @@ import { useProducts } from '@/hooks/useProducts';
 import { useOrders, useOrderStats } from '@/hooks/useOrders';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Package, ShoppingCart, Tags, Settings, Plus, LogOut, Sparkles, TrendingUp, Eye, Flower2, Megaphone, ShieldCheck } from 'lucide-react';
+import { Package, ShoppingCart, Tags, Settings, Plus, LogOut, Sparkles, TrendingUp, Eye, Flower2, Megaphone } from 'lucide-react';
 import Logo from '@/components/layout/Logo';
 
 function firstImage(imageUrl: string | null | undefined): string | null {
@@ -27,7 +27,7 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!authLoading && !user) navigate('/auth');
+    if (!authLoading && !user) navigate('/admin/login');
     else if (!authLoading && !isAdmin) navigate('/acces-refuse');
   }, [user, isAdmin, authLoading, navigate]);
 
@@ -79,9 +79,6 @@ export default function AdminDashboard() {
           </Button>
           <Button variant="outline" className="border-pink-200 text-pink-700" asChild>
             <Link to="/admin/publicites"><Megaphone className="h-4 w-4 mr-2" />Publicités</Link>
-          </Button>
-          <Button variant="outline" className="border-pink-200 text-pink-700" asChild>
-            <Link to="/admin/administrateurs"><ShieldCheck className="h-4 w-4 mr-2" />Administrateurs</Link>
           </Button>
         </div>
 

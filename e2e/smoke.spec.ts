@@ -20,10 +20,11 @@ test('la page /produits rend sans écran vide', async ({ page }) => {
   await expect(page.locator('body')).not.toBeEmpty();
 });
 
-test('sans session, /admin redirige vers /auth (et non vers l’accueil)', async ({ page }) => {
+test('sans session, /admin redirige vers /admin/login (et non vers l’accueil)', async ({ page }) => {
   await page.goto('/admin');
   // Régression : l'accès admin ne doit JAMAIS rebondir silencieusement vers "/".
-  await expect(page).toHaveURL(/\/auth/);
+  // Le login admin canonique est /admin/login (l'ancien /auth reste un alias).
+  await expect(page).toHaveURL(/\/admin\/login/);
 });
 
 test('le panier s’ouvre via le bouton flottant (aria-label)', async ({ page }) => {

@@ -18,7 +18,8 @@ CREATE EXTENSION IF NOT EXISTS "unaccent";
 -- ═══════════════════════════════════════════════════════════════
 -- MIGRATION : SUPPRESSION DÉFINITIVE DE L'ANCIENNE TABLE PROFILES
 -- Modèle d'accès actuel (voir section « ADMIN AUTHORIZATION ») :
---   admin explicite via public.admin_users — PAS « tout auth = admin ».
+--   tout compte Supabase Auth créé manuellement dans le Dashboard
+--   (Authentication → Users) est un compte admin.
 -- Toute trace de l'ancien système de profils (table, RPC, trigger)
 -- est supprimée ici — y compris sur les bases déjà déployées.
 -- ═══════════════════════════════════════════════════════════════
@@ -167,33 +168,34 @@ CREATE TABLE IF NOT EXISTS public.promos (
 );
 
 -- ═══════════════════════════════════════════════════════════════
--- ADMIN AUTHORIZATION — MODÈLE SÉCURISÉ (2026-08-09)
+-- ADMIN AUTHORIZATION — MODÈLE ACTUEL
 --
--- PROBLÈME CORRIGÉ : l'ancien `is_admin()` retournait
---   SELECT auth.uid() IS NOT NULL;
--- c'est-à-dire « TOUT utilisateur authentifié = admin ». Avec
--- l'inscription publique activée, n'importe quel visiteur pouvait
--- créer un compte puis accéder au CRUD admin (produits, commandes…).
+-- Architecture volontairement simple : ce projet Supabase Auth est
+-- réservé EXCLUSIVEMENT aux comptes administrateurs. Aucun système
+-- de rôles, aucune table admin, aucune metadata de rôle.
 --
--- NOUVELLE ARCHITECTURE (sûre, compatible Supabase Free Plan) :
---   * Table `public.admin_users (user_id → auth.users.id)` : liste
---     EXPLICITE des administrateurs. Un compte créé par inscription
---     publique n'y figure PAS → n'est PAS admin.
---   * `is_admin()` vérifie l'existence d'une ligne pour auth.uid() :
---     impossible de devenir admin sans entrée dans cette table.
+--   Utilisateur authentifié (auth.uid() IS NOT NULL)  → ADMIN
+--   Visiteur non connecté                            → PAS ADMIN
+--
+-- Les comptes sont créés UNIQUEMENT et manuellement par l'administrateur
+-- de confiance via : Supabase Dashboard → Authentication → Users →
+-- Create user. L'inscription publique n'est PAS exposée par l'application
+-- (aucune page /signup, aucun appel signUp()).
+--
+--   * `is_admin()` = `auth.uid() IS NOT NULL`. C'est SÛR sous cette
+--     architecture : aucun visiteur ne peut créer de compte lui-même,
+--     donc « authentifié » implique « compte admin créé manuellement ».
+--   * La sécurité applicative : les policies RLS ci-dessous utilisent
+--     `public.is_admin()` → les visiteurs anonymes ne peuvent JAMAIS
+--     lire/écrire/supprimer les données sensibles (products, orders,
+--     contact_messages, etc.). Seuls les INSERT publics intentionnels
+--     (commandes WhatsApp, messages de contact) restent ouverts.
 --   * Aucune donnée utilisateur-éditable (raw_user_meta_data, profil)
 --     n'est utilisée pour l'autorisation.
---   * RLS sur admin_users : SELECT = sa propre ligne ; AUCUNE policy
---     d'écriture pour anon/authenticated (+ REVOKE INSERT/UPDATE/DELETE).
---     Seul service_role (SQL Editor / backend de confiance) peut écrire.
 --
--- AJOUTER UN ADMIN (SQL Editor Supabase) :
---     INSERT INTO public.admin_users (user_id)
---     SELECT id FROM auth.users WHERE email = 'admin@example.com';
+-- Ne PAS réintroduire de table admin_users ni de colonne role.
 --
 -- ═══════════════════════════════════════════════════════════════
-
-DROP TABLE IF EXISTS public.admin_users CASCADE;
 
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS BOOLEAN
@@ -497,13 +499,4 @@ CREATE POLICY "contact_messages_admin_select"
 -- =====================================================
 -- REFRESH SCHEMA CACHE
 -- =====================================================
-NOTIFY pgrst, 'reload schema';
--- ====================================================
--- ADMIN MANAGEMENT (écran Administrateurs du dashboard)
--- SECURITY DEFINER + is_admin() : seuls les admins peuvent lister/ajouter/retirer
--- ====================================================
-DROP FUNCTION IF EXISTS public.list_admins();
-DROP FUNCTION IF EXISTS public.add_admin(text);
-DROP FUNCTION IF EXISTS public.remove_admin(text);
-
 NOTIFY pgrst, 'reload schema';

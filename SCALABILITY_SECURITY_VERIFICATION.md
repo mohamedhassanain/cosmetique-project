@@ -49,50 +49,36 @@ ils nécessitent un compte de test dédié et un projet d'isolation.
 
 ## 2. Admin Security
 
-### Vulnérabilité précédente
+### Modèle d'autorisation (actuel)
 
-L'ancien `is_admin()` retournait `auth.uid() IS NOT NULL`, c'est-à-dire
-« tout utilisateur authentifié = admin ». Avec l'inscription publique activée,
-n'importe quel visiteur pouvait créer un compte, puis accéder au CRUD admin
-(produits, commandes, paramètres) et aux données sensibles.
+Ce projet Supabase Auth est réservé EXCLUSIVEMENT aux comptes administrateurs.
+Il n'existe AUCUN système de rôles :
 
-### Nouveau mécanisme d'autorisation
+- **Utilisateur authentifié (`auth.uid() IS NOT NULL`) → ADMIN**
+- **Visiteur non connecté → PAS ADMIN**
 
-1. Table `public.admin_users (user_id → auth.users.id, email, created_at, created_by)`
-   : liste EXPLICITE des administrateurs.
-2. `is_admin()` = `EXISTS (SELECT 1 FROM admin_users WHERE user_id = auth.uid())`.
-3. Aucune donnée utilisateur-éditable (`raw_user_meta_data`, profil) n'est utilisée
-   pour l'autorisation.
-4. RLS sur `admin_users` : SELECT = sa propre ligne uniquement ; **aucune** policy
-   d'écriture pour `anon`/`authenticated` ; `REVOKE INSERT, UPDATE, DELETE` ajouté.
-   Seul `service_role` (SQL Editor) peut écrire.
-5. **Nouveau (cette session)** : écran « Administrateurs » dans le dashboard
-   (`/admin/administrateurs`) + RPC `list_admins` / `add_admin` / `remove_admin`.
-   Toutes les RPC sont `SECURITY DEFINER` et vérifient `public.is_admin()` :
-   un non-admin ne peut ni lister, ni ajouter, ni retirer un admin.
-   L'ajout/retrait se fait par EMAIL uniquement — l'UUID cible est résolu côté base,
-   jamais manipulé par le client.
+Les comptes sont créés manuellement par l'administrateur de confiance :
+Supabase Dashboard → Authentication → Users → Create user (email + mot de passe).
+L'application ne propose ni inscription publique, ni page /signup, ni appel
+`signUp()`.
 
-### Comment les admins sont identifiés
+### `is_admin()`
 
-Un utilisateur est admin si et seulement si son `auth.uid()` possède une ligne
-dans `public.admin_users`. Le carrousel `auth.role() = 'authenticated'` n'accorde
-plus jamais le rôle admin.
+```sql
+SELECT auth.uid() IS NOT NULL;
+```
 
-### Comment un utilisateur normal est empêché de devenir admin
-
-- Nouvel inscrit : aucune ligne dans `admin_users` → `is_admin()` = false.
-- Il ne peut pas insérer dans `admin_users` (aucune policy d'écriture + REVOKE).
-- Les RPC d'ajout vérifient `is_admin()` côté serveur → un non-admin reçoit
-  « Accès refusé ».
-- Son `raw_user_meta_data` est ignoré par toute la chaîne d'autorisation.
+C'est SÛR sous cette architecture : aucun visiteur ne peut créer de compte
+lui-même, donc « authentifié » implique « compte admin créé manuellement ».
+Aucune donnée utilisateur-éditable (`raw_user_meta_data`, profil) n'est utilisée
+pour l'autorisation. **Ne pas** réintroduire de table `admin_users` ni de
+colonne `role`.
 
 ### Vérifications de comportement
 
 ```
-Utilisateur anonyme          → is_admin() = false → /admin redirige /acces-refuse
-Utilisateur authentifié simple → is_admin() = false → /admin redirige /acces-refuse
-Admin explicite (admin_users) → is_admin() = true  → accès /admin complet
+Visiteur anonyme             → is_admin() = false → /admin redirige /admin/login
+Compte admin (Auth) connecté → is_admin() = true  → accès /admin complet
 ```
 
 ### RLS
@@ -101,26 +87,20 @@ Toutes les tables sensibles (products, orders, contact_messages, categories,
 subcategories, site_settings, promos, product_images, storage.objects) utilisent
 `public.is_admin()` dans leurs policies d'écriture. Les SELECT publics restent
 limités aux lectures légitimes (`products.is_active`, `promos.is_active`, etc.).
+Les INSERT publics intentionnels restent ouverts uniquement pour `orders`
+(commandes WhatsApp) et `contact_messages` (formulaire de contact).
 
 ### Configuration requise dans le dashboard Supabase
 
-1. **Authentication → Providers** : laisser Email activé. L'inscription publique
-   peut rester activée : elle ne crée JAMAIS d'admin.
-2. **SQL Editor** : exécuter UNIQUEMENT `supabase/database.sql` (idempotent).
-   C'est LE fichier unique du schéma : création de toutes les tables,
-   `admin_users` (avec email), RLS, `is_admin()` et les RPC
-   `list_admins` / `add_admin` / `remove_admin` (bloc « ADMIN MANAGEMENT »
-   en fin de fichier). Aucun autre script n'est requis.
-3. **Premier admin** (table vide) — SQL Editor :
-   ```sql
-   INSERT INTO public.admin_users (user_id, email)
-   SELECT id, email FROM auth.users WHERE email = 'votre-email@exemple.com';
-   ```
-   Ou : `auth.uid()` d'un compte admin existant.
-4. **Table Editor → admin_users** : vérifier la colonne `email` (rétro-remplie
-   automatiquement par database.sql).
-5. Ensuite, les admins suivants s'ajoutent depuis `/admin/administrateurs`
-   (dashboard) par email — sans toucher au SQL.
+1. **Authentication → Providers → Email** : laisser l'option « Allow new users
+   to sign up » DÉSACTIVÉE — il n'y a aucune inscription publique.
+2. **Créer les comptes admin** : Authentication → Users → Create user
+   (email + mot de passe). Chaque compte créé est un compte admin.
+   Ex. : admin1@example.com, admin2@example.com, admin3@example.com — tous
+   valides sans aucune configuration supplémentaire.
+3. **SQL Editor** : exécuter UNIQUEMENT `supabase/database.sql` (idempotent).
+   Aucun autre script n'est requis ; ce fichier ne crée plus ni `admin_users`
+   ni RPC de gestion d'admins.
 
 ---
 
@@ -174,7 +154,7 @@ Aucune conversion forcée côté client pour ne pas casser les URLs existantes.
 |---|---|
 | TypeScript (`tsc --noEmit`) | ✅ PASS — exit 0 |
 | ESLint (fichiers modifiés) | ✅ PASS — exit 0 |
-| Build production (`vite build`) | ✅ PASS — exit 0 (chunk AdminUsers généré) |
+| Build production (`vite build`) | ✅ PASS — exit 0 |
 | Tests unitaires (`vitest run`) | ✅ PASS — 11 fichiers, 70/70 tests |
 | E2E (Playwright) | NOT RUN — raison : nécessite un serveur + Supabase de test |
 
@@ -200,9 +180,9 @@ Required action: voir section 1.
    Supabase. Aucune donnée de performance réelle n'est encore disponible.
 2. **E2E Playwright non exécuté** — la suite couvre le smoke (navigation),
    mais pas encore un parcours admin complet.
-3. **Premier admin** : tant que `admin_users` est vide, l'écran « Administrateurs »
-   ne peut pas s'ajouter lui-même — la création du tout premier admin reste
-   manuelle (SQL Editor).
+3. **Création des comptes** : la création de compte reste manuelle et se fait
+   uniquement dans le Dashboard Supabase (Authentication → Users → Create user).
+   L'application n'expose aucun mécanisme de création de compte.
 4. **Backoff / rate-limiting** : la sécurité applicative repose sur GoTrue ;
    un vrai projet en production doit activer les protections anti-brute-force
    natives (email confirmations, captcha optionnel).
@@ -215,8 +195,10 @@ Required action: voir section 1.
 
 ### Résumé
 
-- ✅ Sécurité admin corrigée et durcie (modèle explicite, RPC protégées, RLS).
-- ✅ Écran de gestion des admins par email ajouté (aucun auto-admin possible).
+- ✅ Sécurité admin : tout compte Supabase Auth créé manuellement = admin
+  (aucun système de rôles, aucune table admin_users), RLS active.
+- ✅ Aucune inscription publique, aucun mécanisme de création de compte
+  dans l'application.
 - ✅ Images produit/héro optimisées (srcSet, sizes, lazy/eager).
 - ✅ TypeScript, ESLint, build et 70 tests unitaires passent.
 - ⚠️ Load test réel Supabase et E2E : non exécutés (identifiants/environnement

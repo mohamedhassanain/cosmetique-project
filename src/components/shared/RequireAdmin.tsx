@@ -3,13 +3,18 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/providers/auth-utils';
 
 /**
- * Garde d'accès admin — double protection :
- *   1. Non connecté → /auth (comme avant).
- *   2. Connecté mais PAS admin (absent de public.admin_users) → /acces-refuse.
+ * Garde d'accès admin.
  *
- * La VRAIE sécurité reste côté base de données (RLS sur toutes les tables
- * admin via public.is_admin()) — ce composant ne sert qu'à l'UX : un simple
- * utilisateur authentifié ne peut de toute façon rien lire/écrire via l'API.
+ * Modèle d'autorisation de l'application : la base Supabase Auth est
+ * réservée aux comptes admin (créés manuellement via le Dashboard →
+ * Authentication → Users). Un utilisateur authentifié EST donc admin :
+ *   - Non connecté                     → /admin/login
+ *   - Connecté (compte admin)          → accès /admin
+ *   - `isAdmin` = `user` non null (auth-provider)
+ *
+ * Il n'existe AUCUN système de rôles. La VRAIE sécurité reste côté base
+ * de données : toutes les tables admin sont protégées par RLS via
+ * `public.is_admin()` (`auth.uid() IS NOT NULL`).
  */
 export function RequireAdmin({ children }: Readonly<{ children: ReactNode }>) {
   const { user, isAdmin, loading } = useAuth();
@@ -24,7 +29,7 @@ export function RequireAdmin({ children }: Readonly<{ children: ReactNode }>) {
   }
 
   if (!user) {
-    return <Navigate to="/auth" replace state={{ from: location.pathname }} />;
+    return <Navigate to="/admin/login" replace state={{ from: location.pathname }} />;
   }
 
   if (!isAdmin) {

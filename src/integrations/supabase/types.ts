@@ -9,51 +9,6 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      admin_users: {
-        Row: {
-          user_id: string
-          created_at: string
-          created_by: string | null
-        }
-        Insert: {
-          user_id: string
-          created_at?: string
-          created_by?: string | null
-        }
-        Update: {
-          user_id?: string
-          created_at?: string
-          created_by?: string | null
-        }
-        Relationships: []
-      }
-      profiles: {
-        Row: {
-          id: string
-          user_id: string
-          full_name: string | null
-          phone: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          full_name?: string | null
-          phone?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          full_name?: string | null
-          phone?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       categories: {
         Row: {
           id: string

@@ -24,7 +24,7 @@ export default function AdminCategories() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!authLoading && !user) navigate('/auth');
+    if (!authLoading && !user) navigate('/admin/login');
     else if (!authLoading && !isAdmin) navigate('/acces-refuse');
   }, [user, isAdmin, authLoading, navigate]);
 

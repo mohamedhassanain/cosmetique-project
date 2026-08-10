@@ -45,7 +45,7 @@ export default function AdminPromos() {
   const [dragIndex, setDragIndex] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!authLoading && !user) navigate('/auth');
+    if (!authLoading && !user) navigate('/admin/login');
     else if (!authLoading && !isAdmin) navigate('/acces-refuse');
   }, [user, isAdmin, authLoading, navigate]);
 
