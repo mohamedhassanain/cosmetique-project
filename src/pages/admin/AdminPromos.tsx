@@ -28,7 +28,7 @@ const EMPTY_FORM: PromoFormState = {
 };
 
 export default function AdminPromos() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, isAdmin, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { data: promos = [], isLoading } = useAllPromos();
   const createPromo = useCreatePromo();
@@ -46,7 +46,8 @@ export default function AdminPromos() {
 
   useEffect(() => {
     if (!authLoading && !user) navigate('/auth');
-  }, [user, authLoading, navigate]);
+    else if (!authLoading && !isAdmin) navigate('/acces-refuse');
+  }, [user, isAdmin, authLoading, navigate]);
 
   useEffect(() => {
     setOrderedPromos(promos);

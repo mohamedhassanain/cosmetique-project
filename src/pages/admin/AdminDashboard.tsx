@@ -5,7 +5,7 @@ import { useProducts } from '@/hooks/useProducts';
 import { useOrders, useOrderStats } from '@/hooks/useOrders';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Package, ShoppingCart, Tags, Settings, Plus, LogOut, Sparkles, TrendingUp, Eye, Flower2, Megaphone } from 'lucide-react';
+import { Package, ShoppingCart, Tags, Settings, Plus, LogOut, Sparkles, TrendingUp, Eye, Flower2, Megaphone, ShieldCheck } from 'lucide-react';
 import Logo from '@/components/layout/Logo';
 
 function firstImage(imageUrl: string | null | undefined): string | null {
@@ -20,7 +20,7 @@ function firstImage(imageUrl: string | null | undefined): string | null {
 }
 
 export default function AdminDashboard() {
-  const { user, loading: authLoading, signOut } = useAuth();
+  const { user, isAdmin, loading: authLoading, signOut } = useAuth();
   const { products, featuredProducts, promotionProducts } = useProducts();
   const { orders: recentOrders } = useOrders({ page: 1, pageSize: 20, status: 'pending' });
   const { pendingCount } = useOrderStats();
@@ -28,9 +28,10 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     if (!authLoading && !user) navigate('/auth');
-  }, [user, authLoading, navigate]);
+    else if (!authLoading && !isAdmin) navigate('/acces-refuse');
+  }, [user, isAdmin, authLoading, navigate]);
 
-  if (authLoading || !user) {
+  if (authLoading || !user || !isAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-pink-50">
         <div className="h-12 w-12 border-4 border-pink-300 border-t-pink-600 rounded-full animate-spin" />
@@ -78,6 +79,9 @@ export default function AdminDashboard() {
           </Button>
           <Button variant="outline" className="border-pink-200 text-pink-700" asChild>
             <Link to="/admin/publicites"><Megaphone className="h-4 w-4 mr-2" />Publicités</Link>
+          </Button>
+          <Button variant="outline" className="border-pink-200 text-pink-700" asChild>
+            <Link to="/admin/administrateurs"><ShieldCheck className="h-4 w-4 mr-2" />Administrateurs</Link>
           </Button>
         </div>
 

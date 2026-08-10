@@ -3,7 +3,7 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useAuth } from '@/providers/auth-utils';
 import { useProducts, useCreateProduct, useUpdateProduct, ProductFormData } from '@/hooks/useProducts';
 import { useCategories, useSubcategories } from '@/hooks/useCategories';
-import { useImageUpload } from '@/hooks/useImageUpload';
+import { useImageUpload, uploadImageWithVariants } from '@/hooks/useImageUpload';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -29,7 +29,7 @@ export default function AdminProductForm() {
   const { id } = useParams();
   const isEditing = !!id;
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
+  const { user, isAdmin, loading: authLoading } = useAuth();
   const { products } = useProducts();
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
@@ -48,6 +48,8 @@ export default function AdminProductForm() {
   const [categoryId, setCategoryId] = useState<string>('');
   const [subcategoryId, setSubcategoryId] = useState<string>('');
   const [images, setImages] = useState<string[]>([]);
+  const [imageUrl400, setImageUrl400] = useState<string | null>(null);
+  const [imageUrl800, setImageUrl800] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState('');
   const [stockQuantity, setStockQuantity] = useState('0');
   const [weightGrams, setWeightGrams] = useState('');
@@ -60,7 +62,8 @@ export default function AdminProductForm() {
 
   useEffect(() => {
     if (!authLoading && !user) navigate('/auth');
-  }, [user, authLoading, navigate]);
+    else if (!authLoading && !isAdmin) navigate('/acces-refuse');
+  }, [user, isAdmin, authLoading, navigate]);
 
   useEffect(() => {
     if (!isEditing || products.length === 0) return;
@@ -77,6 +80,8 @@ export default function AdminProductForm() {
     setCategoryId(p.category_id || '');
     setSubcategoryId(p.subcategory_id || '');
     setImages(parseImageUrl(p.image_url));
+    setImageUrl400(p.image_url_400 ?? null);
+    setImageUrl800(p.image_url_800 ?? null);
     setVideoUrl(p.video_url || '');
     setStockQuantity(p.stock_quantity.toString());
     setWeightGrams(p.weight_grams?.toString() || '');
@@ -102,7 +107,19 @@ export default function AdminProductForm() {
     if (!files || files.length === 0) return;
 
     const urls: string[] = [];
+    const isFirst = images.length === 0;
     for (let i = 0; i < files.length; i++) {
+      if (isFirst && i === 0) {
+        try {
+          const v = await uploadImageWithVariants(files[i], 'products');
+          urls.push(v.image_url);
+          setImageUrl400(v.image_url_400);
+          setImageUrl800(v.image_url_800);
+          continue;
+        } catch {
+          // Repli : upload simple si les variantes échouent (jamais bloquant).
+        }
+      }
       const url = await uploadImage(files[i], 'products');
       if (url) urls.push(url);
     }
@@ -178,6 +195,8 @@ export default function AdminProductForm() {
       is_featured: isFeatured,
       is_active: isActive,
       image_url: images.length > 0 ? JSON.stringify(images) : undefined,
+      image_url_400: imageUrl400,
+      image_url_800: imageUrl800,
       video_url: videoUrl || undefined,
       category_id: categoryId || undefined,
       subcategory_id: subcategoryId || undefined,

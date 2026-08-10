@@ -22,6 +22,10 @@ export interface Product {
   is_featured: boolean;
   is_active: boolean;
   image_url: string | null;
+  /** Variante optimisée 400px (cartes produit) — générée à l'upload. */
+  image_url_400: string | null;
+  /** Variante optimisée 800px (fiche produit) — générée à l'upload. */
+  image_url_800: string | null;
   video_url: string | null;
   category_id: string | null;
   subcategory_id: string | null;

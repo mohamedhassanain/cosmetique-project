@@ -11,6 +11,7 @@ import { useProductActions } from '@/hooks/useProductActions';
 import { useCart } from '@/providers/cart-utils';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { useProductBySlug } from '@/hooks/useProducts';
+import { getProductDetailImage } from '@/lib/images';
 import { useSeo } from '@/hooks/useSeo';
 import { ShoppingCart, MessageCircle, Share2, ChevronLeft, ChevronRight, Sparkles, Leaf, Flower2, Package, Play, MapPin, Navigation, X } from 'lucide-react';
 
@@ -110,19 +111,25 @@ export default function ProduitDetail() {
             <div className="relative aspect-square rounded-3xl overflow-hidden bg-white border border-pink-100">
               {currentMedia?.type === 'image' ? (
                 // L'image principale est le LCP de la page produit : chargement prioritaire.
-                /* Images responsives : ajouter un srcSet/sizes ici si le plan Supabase
-                   active les Image Transformations (ex: ?width=400 / 800 / 1200&quality=80). */
-                /* TODO: srcSet responsive si upgrade plan Supabase */
-                <img
-                  src={currentMedia.url}
-                  alt={product.name}
-                  fetchPriority="high"
-                  loading="eager"
-                  decoding="async"
-                  width={800}
-                  height={800}
-                  className="w-full h-full object-cover"
-                />
+                // srcSet/sizes uniquement pour l'image primaire (variante 800px associée).
+                (() => {
+                  const detailImage = getProductDetailImage(product);
+                  const isPrimary = mediaIndex === 0;
+                  return (
+                    <img
+                      src={currentMedia.url}
+                      srcSet={isPrimary ? detailImage.srcSet : undefined}
+                      sizes={isPrimary ? detailImage.sizes : undefined}
+                      alt={product.name}
+                      fetchPriority="high"
+                      loading="eager"
+                      decoding="async"
+                      width={800}
+                      height={800}
+                      className="w-full h-full object-cover"
+                    />
+                  );
+                })()
               ) : currentMedia?.type === 'video' ? (
                 currentMedia.url.includes('youtube') || currentMedia.url.includes('youtu.be') ? (
                   <iframe

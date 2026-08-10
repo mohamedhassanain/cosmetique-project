@@ -13,7 +13,7 @@ import { ArrowLeft, Plus, Edit, Trash2, FolderOpen, Tag } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function AdminCategories() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, isAdmin, loading: authLoading } = useAuth();
   const { categories, isLoading, createCategory, updateCategory, deleteCategory } = useCategories();
   const navigate = useNavigate();
 
@@ -25,7 +25,8 @@ export default function AdminCategories() {
 
   useEffect(() => {
     if (!authLoading && !user) navigate('/auth');
-  }, [user, authLoading, navigate]);
+    else if (!authLoading && !isAdmin) navigate('/acces-refuse');
+  }, [user, isAdmin, authLoading, navigate]);
 
   const handleOpenDialog = (cat?: typeof categories[0]) => {
     if (cat) {

@@ -11,7 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft, Upload, Loader2, X } from 'lucide-react';
 
 export default function AdminSettings() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, isAdmin, loading: authLoading } = useAuth();
   const { settings, isLoading, updateSettings } = useSiteSettings();
   const { uploadImage } = useImageUpload();
   const navigate = useNavigate();
@@ -26,7 +26,8 @@ export default function AdminSettings() {
 
   useEffect(() => {
     if (!authLoading && !user) navigate('/auth');
-  }, [user, authLoading, navigate]);
+    else if (!authLoading && !isAdmin) navigate('/acces-refuse');
+  }, [user, isAdmin, authLoading, navigate]);
 
   useEffect(() => {
     if (settings) {

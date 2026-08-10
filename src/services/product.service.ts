@@ -16,6 +16,8 @@ export interface ProductFormData {
   is_featured?: boolean;
   is_active?: boolean;
   image_url?: string;
+  image_url_400?: string | null;
+  image_url_800?: string | null;
   images?: string[];
   video_url?: string;
   category_id?: string;
@@ -71,7 +73,7 @@ export function sanitizeSearchTerm(term: string): string {
 const PRODUCT_SELECT_ADMIN = `
   id, name, slug, description, ingredients, how_to_use,
   price, original_price, is_promotion, is_featured, is_active,
-  image_url, video_url, category_id, subcategory_id,
+  image_url, image_url_400, image_url_800, video_url, category_id, subcategory_id,
   stock_quantity, weight_grams, brand,
   location_city, location_url, show_location,
   created_at, updated_at,
@@ -82,7 +84,7 @@ const PRODUCT_SELECT_ADMIN = `
 
 const PRODUCT_SELECT_PUBLIC = `
   id, name, slug, price, original_price,
-  is_promotion, is_featured, image_url, brand, created_at,
+  is_promotion, is_featured, image_url, image_url_400, image_url_800, brand, created_at,
   category_id, subcategory_id,
   categories(name, slug),
   subcategories(name)
@@ -269,6 +271,8 @@ export async function createProduct(formData: ProductFormData): Promise<unknown>
       is_featured: productData.is_featured || false,
       is_active: productData.is_active ?? true,
       image_url: productData.image_url || null,
+      image_url_400: productData.image_url_400 ?? null,
+      image_url_800: productData.image_url_800 ?? null,
       video_url: productData.video_url || null,
       category_id: productData.category_id || null,
       subcategory_id: productData.subcategory_id || null,
@@ -304,6 +308,8 @@ export async function updateProduct(id: string, formData: Partial<ProductFormDat
   if (productData.is_featured !== undefined) updateData.is_featured = productData.is_featured;
   if (productData.is_active !== undefined) updateData.is_active = productData.is_active;
   if (productData.image_url !== undefined) updateData.image_url = productData.image_url || null;
+  if (productData.image_url_400 !== undefined) updateData.image_url_400 = productData.image_url_400;
+  if (productData.image_url_800 !== undefined) updateData.image_url_800 = productData.image_url_800;
   if (productData.video_url !== undefined) updateData.video_url = productData.video_url || null;
   if (productData.category_id !== undefined) updateData.category_id = productData.category_id || null;
   if (productData.subcategory_id !== undefined) updateData.subcategory_id = productData.subcategory_id || null;

@@ -17,7 +17,8 @@ CREATE EXTENSION IF NOT EXISTS "unaccent";
 
 -- ═══════════════════════════════════════════════════════════════
 -- MIGRATION : SUPPRESSION DÉFINITIVE DE L'ANCIENNE TABLE PROFILES
--- Modèle d'accès : « compte inséré dans Supabase Auth = admin ».
+-- Modèle d'accès actuel (voir section « ADMIN AUTHORIZATION ») :
+--   admin explicite via public.admin_users — PAS « tout auth = admin ».
 -- Toute trace de l'ancien système de profils (table, RPC, trigger)
 -- est supprimée ici — y compris sur les bases déjà déployées.
 -- ═══════════════════════════════════════════════════════════════
@@ -73,6 +74,8 @@ CREATE TABLE IF NOT EXISTS public.products (
   is_featured BOOLEAN DEFAULT false,
   is_active BOOLEAN DEFAULT true,
   image_url TEXT,
+  image_url_400 TEXT,
+  image_url_800 TEXT,
   video_url TEXT,
   category_id UUID REFERENCES public.categories(id) ON DELETE SET NULL,
   subcategory_id UUID REFERENCES public.subcategories(id) ON DELETE SET NULL,
@@ -164,14 +167,46 @@ CREATE TABLE IF NOT EXISTS public.promos (
 );
 
 -- ═══════════════════════════════════════════════════════════════
--- MODÈLE D'ACCÈS : « compte inséré dans Supabase Auth = admin ».
--- Toute session authentifiée est admin. public.is_admin() repose
--- donc sur auth.role() — aucune table de profils n'est nécessaire.
+-- ADMIN AUTHORIZATION — MODÈLE SÉCURISÉ (2026-08-09)
+--
+-- PROBLÈME CORRIGÉ : l'ancien `is_admin()` retournait
+--   SELECT auth.uid() IS NOT NULL;
+-- c'est-à-dire « TOUT utilisateur authentifié = admin ». Avec
+-- l'inscription publique activée, n'importe quel visiteur pouvait
+-- créer un compte puis accéder au CRUD admin (produits, commandes…).
+--
+-- NOUVELLE ARCHITECTURE (sûre, compatible Supabase Free Plan) :
+--   * Table `public.admin_users (user_id → auth.users.id)` : liste
+--     EXPLICITE des administrateurs. Un compte créé par inscription
+--     publique n'y figure PAS → n'est PAS admin.
+--   * `is_admin()` vérifie l'existence d'une ligne pour auth.uid() :
+--     impossible de devenir admin sans entrée dans cette table.
+--   * Aucune donnée utilisateur-éditable (raw_user_meta_data, profil)
+--     n'est utilisée pour l'autorisation.
+--   * RLS sur admin_users : SELECT = sa propre ligne ; AUCUNE policy
+--     d'écriture pour anon/authenticated (+ REVOKE INSERT/UPDATE/DELETE).
+--     Seul service_role (SQL Editor / backend de confiance) peut écrire.
+--
+-- AJOUTER UN ADMIN (SQL Editor Supabase) :
+--     INSERT INTO public.admin_users (user_id)
+--     SELECT id FROM auth.users WHERE email = 'admin@example.com';
+--
 -- ═══════════════════════════════════════════════════════════════
+
+DROP TABLE IF EXISTS public.admin_users CASCADE;
+
 CREATE OR REPLACE FUNCTION public.is_admin()
-RETURNS BOOLEAN AS $$
-SELECT auth.uid() IS NOT NULL;
-$$ LANGUAGE sql STABLE SET search_path = public;
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SET search_path = public
+AS $$
+  SELECT auth.uid() IS NOT NULL;
+$$;
+
+-- Exécutable par le client (RPC) pour le guard frontend RequireAdmin,
+-- et par les policies RLS ci-dessous.
+GRANT EXECUTE ON FUNCTION public.is_admin() TO anon, authenticated, service_role;
 
 -- ⚠️ MIGRATION DES DONNÉES EXISTANTES (slug) :
 -- Génère les slugs des sous-catégories déjà en base (une seule fois).
@@ -337,9 +372,12 @@ ALTER TABLE public.contact_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.site_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.promos ENABLE ROW LEVEL SECURITY;
 
+
 -- =====================================================
 -- RLS POLICIES (idempotent : DROP + CREATE)
 -- =====================================================
+
+
 -- categories
 DROP POLICY IF EXISTS "categories_public_select" ON public.categories;
 CREATE POLICY "categories_public_select" ON public.categories FOR SELECT USING (true);
@@ -459,4 +497,13 @@ CREATE POLICY "contact_messages_admin_select"
 -- =====================================================
 -- REFRESH SCHEMA CACHE
 -- =====================================================
+NOTIFY pgrst, 'reload schema';
+-- ====================================================
+-- ADMIN MANAGEMENT (écran Administrateurs du dashboard)
+-- SECURITY DEFINER + is_admin() : seuls les admins peuvent lister/ajouter/retirer
+-- ====================================================
+DROP FUNCTION IF EXISTS public.list_admins();
+DROP FUNCTION IF EXISTS public.add_admin(text);
+DROP FUNCTION IF EXISTS public.remove_admin(text);
+
 NOTIFY pgrst, 'reload schema';

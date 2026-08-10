@@ -29,6 +29,41 @@ export function isWebPSupported(): boolean {
  * @returns Le fichier optimisé, avec une extension adaptée au format de sortie.
  * @throws Error si la compression échoue (l'appelant retombe sur l'original).
  */
+/** Compresse à une largeur donnée (variante) via browser-image-compression. */
+async function optimizeToWidth(file: File, width: number, mime: string): Promise<File> {
+  const baseName = file.name.replace(/\.[^.]+$/, '');
+  const ext = mime === 'image/webp' ? 'webp' : 'jpeg';
+  const compressed = await imageCompression(file, {
+    maxWidthOrHeight: width,
+    useWebWorker: true,
+    fileType: mime,
+  });
+  return new File([compressed], `${baseName}-${width}.${ext}`, { type: mime });
+}
+
+/** Uploade une image en 3 tailles (1600/800/400) et retourne leurs URLs publiques. */
+export async function uploadImageWithVariants(
+  file: File,
+  folder: string
+): Promise<{ image_url: string; image_url_400: string | null; image_url_800: string | null }> {
+  const useWebP = isWebPSupported();
+  const mime = useWebP ? OUTPUT_TYPE : 'image/jpeg';
+  const image_url = await apiUploadImage(await optimizeToWidth(file, 1600, mime), folder);
+  let image_url_800: string | null = null;
+  let image_url_400: string | null = null;
+  try {
+    image_url_800 = await apiUploadImage(await optimizeToWidth(file, 800, mime), folder);
+  } catch (e) {
+    console.error('Variante 800 échouée (non bloquant):', e);
+  }
+  try {
+    image_url_400 = await apiUploadImage(await optimizeToWidth(file, 400, mime), folder);
+  } catch (e) {
+    console.error('Variante 400 échouée (non bloquant):', e);
+  }
+  return { image_url, image_url_400, image_url_800 };
+}
+
 export async function optimizeImage(file: File): Promise<File> {
   const useWebP = isWebPSupported();
   const mime = useWebP ? OUTPUT_TYPE : 'image/jpeg';
@@ -62,8 +97,7 @@ export function useImageUpload() {
         return await apiUploadImage(file, folder);
       }
 
-      // Compression côté client pour réduire la taille envoyée à Supabase Storage.
-      // En cas d'échec, on retombe sur l'original : ne jamais bloquer l'admin.
+      // Compression principale (~300 Ko, 1600px max, WebP si supporté).
       let optimized = file;
       try {
         optimized = await optimizeImage(file);

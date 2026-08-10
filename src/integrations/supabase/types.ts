@@ -9,6 +9,24 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      admin_users: {
+        Row: {
+          user_id: string
+          created_at: string
+          created_by: string | null
+        }
+        Insert: {
+          user_id: string
+          created_at?: string
+          created_by?: string | null
+        }
+        Update: {
+          user_id?: string
+          created_at?: string
+          created_by?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           id: string
@@ -121,6 +139,8 @@ export type Database = {
           is_featured: boolean
           is_active: boolean
           image_url: string | null
+          image_url_400: string | null
+          image_url_800: string | null
           category_id: string | null
           subcategory_id: string | null
           stock_quantity: number
@@ -142,6 +162,8 @@ export type Database = {
           is_featured?: boolean
           is_active?: boolean
           image_url?: string | null
+          image_url_400?: string | null
+          image_url_800?: string | null
           category_id?: string | null
           subcategory_id?: string | null
           stock_quantity?: number
@@ -163,6 +185,8 @@ export type Database = {
           is_featured?: boolean
           is_active?: boolean
           image_url?: string | null
+          image_url_400?: string | null
+          image_url_800?: string | null
           category_id?: string | null
           subcategory_id?: string | null
           stock_quantity?: number

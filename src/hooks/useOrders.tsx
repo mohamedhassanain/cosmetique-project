@@ -12,7 +12,7 @@ import {
 import { QUERY_KEYS } from '@/constants/query-keys';
 import { Order } from '@/types/product';
 
-export interface UseOrdersOptions extends OrderFilters {}
+export type UseOrdersOptions = OrderFilters;
 
 /**
  * Commandes paginées pour l'admin (jamais toutes en mémoire).

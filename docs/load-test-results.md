@@ -94,3 +94,34 @@ script avec `-e TARGET_URL=https://<domaine-production>` avant une campagne
 publicitaire afin de confirmer les seuils sur l'infrastructure réelle.
 
 *Rapport mis à jour le 02/08/2026 avec les métriques réelles du run local.*
+
+
+---
+
+## Test de charge RÉEL Supabase (k6) — remplace le test local
+
+Le script scripts/k6-load-test.js pèse directement l'API Supabase (PostgREST + GoTrue + PostgreSQL), pas le rendu Vite local. Scénarios couverts : listing produits, recherche/filtre, fiche produit, login GoTrue (compte non-admin de test), INSERT commande de test. Aucun secret utilisé : SUPABASE_URL + SUPABASE_ANON_KEY (clé publique) + compte de test non-admin — voir .env.example. Jamais de service_role.
+
+### Exécution (projet Supabase DÉDIÉ AUX TESTS, jamais la production)
+
+```text
+k6 run -e SUPABASE_URL=https://<projet-test>.supabase.co -e SUPABASE_ANON_KEY=<cle-anon-test> -e SUPABASE_TEST_EMAIL=loadtest@example.com -e SUPABASE_TEST_PASSWORD=<mdp> -e MAX_VUS=40 -e DURATION=2m scripts/k6-load-test.js
+```
+
+> Free Plan : charge prudente (≤ 40 VU). Au-delà, Supabase applique des limites de débit (anti-DoS) — c'est une limite de plateforme, pas du code.
+
+### Résultats (à reporter après exécution, aucun chiffre inventé)
+
+```text
+Environment: Supabase test project
+Virtual Users: 40
+Duration: ~3 min (rampe 30s + palier 2m + descente 30s)
+Requests/sec: <à mesurer>
+p50: <ms> | p95: <ms> | p99: <ms>
+Errors: <percent>
+Timeouts: <percent>
+```
+
+L'ancien test local (02/08/2026, 185 req/s / 500 VU sur vite preview) ne touchait PAS Supabase et est conservé plus haut à titre historique.
+
+*Rapport mis à jour le 09/08/2026.*

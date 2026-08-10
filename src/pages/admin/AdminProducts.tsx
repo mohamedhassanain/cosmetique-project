@@ -17,7 +17,7 @@ import { parseImages } from '@/services/whatsapp.service';
 import type { AdminProductFilters } from '@/hooks/useProducts';
 
 export default function AdminProducts() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, isAdmin, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const deleteProduct = useDeleteProduct();
   const { categories, isLoading: catLoading, createCategory, updateCategory, deleteCategory } = useCategories();
@@ -53,7 +53,8 @@ export default function AdminProducts() {
 
   useEffect(() => {
     if (!authLoading && !user) navigate('/auth');
-  }, [user, authLoading, navigate]);
+    else if (!authLoading && !isAdmin) navigate('/acces-refuse');
+  }, [user, isAdmin, authLoading, navigate]);
 
   const handleDelete = async () => {
     if (deleteId) {

@@ -8,6 +8,7 @@ import { Product } from '@/types/product';
 import { useProductActions } from '@/hooks/useProductActions';
 import { useCart } from '@/providers/cart-utils';
 import { useIsDesktop } from '@/hooks/useIsDesktop';
+import { getProductCardImage } from '@/lib/images';
 
 interface ProductCardProps {
   product: Product;
@@ -20,6 +21,7 @@ export const ProductCard = memo(function ProductCard({ product }: Readonly<Produ
 
   const images = parseImages(product.image_url);
   const displayImage = images[0];
+  const cardImage = getProductCardImage(product);
 
   // Sur PC (souris), la fiche produit s'ouvre dans un nouvel onglet.
   // Sur mobile et tablette (tactile), la navigation actuelle est conservée.
@@ -49,16 +51,15 @@ export const ProductCard = memo(function ProductCard({ product }: Readonly<Produ
       <Link to={`/produit/${product.slug}`} {...productLinkProps}>
         <div className="aspect-square relative overflow-hidden w-full rounded-t-2xl bg-pink-50">
           {displayImage ? (
-            /* Images responsives : ajouter un srcSet/sizes ici si le plan Supabase
-               active les Image Transformations (ex: ?width=400 / 800 / 1200&quality=80). */
-            /* TODO: srcSet responsive si upgrade plan Supabase */
             <img
-              src={displayImage}
+              src={cardImage.src}
+              srcSet={cardImage.srcSet}
+              sizes={cardImage.sizes}
               alt={product.name}
               loading="lazy"
               decoding="async"
-              width={800}
-              height={800}
+              width={400}
+              height={400}
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             />
           ) : (

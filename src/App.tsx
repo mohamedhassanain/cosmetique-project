@@ -5,7 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryProvider } from "@/providers/query-provider";
 import { AuthProvider } from "@/providers/auth-provider";
-import { RequireAuth } from "@/components/shared/RequireAuth";
+import { RequireAdmin } from "@/components/shared/RequireAdmin";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { CartProvider } from "@/providers/cart-provider";
 import { BottomNav } from "@/components/layout/BottomNav";
@@ -23,9 +23,11 @@ const AdminCategories = lazy(() => import("./pages/admin/AdminCategories"));
 const AdminOrders = lazy(() => import("./pages/admin/AdminOrders"));
 const AdminSettings = lazy(() => import("./pages/admin/AdminSettings"));
 const AdminPromos = lazy(() => import("./pages/admin/AdminPromos"));
+const AdminUsers = lazy(() => import("./pages/admin/AdminUsers"));
 const Produits = lazy(() => import("./pages/shop/Produits"));
 const ProduitDetail = lazy(() => import("./pages/shop/ProduitDetail"));
 const NotFound = lazy(() => import("./pages/errors/NotFound"));
+const AccesRefuse = lazy(() => import("./pages/errors/AccesRefuse"));
 
 function PageLoader() {
   return (
@@ -58,72 +60,82 @@ const App = () => (
                   {/* Authentification (admin) */}
                   <Route path="/auth" element={<Auth />} />
 
-                  {/* Pages admin — protégées par RequireAuth */}
+                  {/* Pages admin — protégées par RequireAdmin (connecté + is_admin) */}
                   <Route
                     path="/admin"
                     element={
-                      <RequireAuth>
+                      <RequireAdmin>
                         <AdminDashboard />
-                      </RequireAuth>
+                      </RequireAdmin>
                     }
                   />
                   <Route
                     path="/admin/produits"
                     element={
-                      <RequireAuth>
+                      <RequireAdmin>
                         <AdminProducts />
-                      </RequireAuth>
+                      </RequireAdmin>
                     }
                   />
                   <Route
                     path="/admin/produits/nouveau"
                     element={
-                      <RequireAuth>
+                      <RequireAdmin>
                         <AdminProductForm />
-                      </RequireAuth>
+                      </RequireAdmin>
                     }
                   />
                   <Route
                     path="/admin/produits/:id"
                     element={
-                      <RequireAuth>
+                      <RequireAdmin>
                         <AdminProductForm />
-                      </RequireAuth>
+                      </RequireAdmin>
                     }
                   />
                   <Route
                     path="/admin/categories"
                     element={
-                      <RequireAuth>
+                      <RequireAdmin>
                         <AdminCategories />
-                      </RequireAuth>
+                      </RequireAdmin>
                     }
                   />
                   <Route
                     path="/admin/commandes"
                     element={
-                      <RequireAuth>
+                      <RequireAdmin>
                         <AdminOrders />
-                      </RequireAuth>
+                      </RequireAdmin>
                     }
                   />
                   <Route
                     path="/admin/parametres"
                     element={
-                      <RequireAuth>
+                      <RequireAdmin>
                         <AdminSettings />
-                      </RequireAuth>
+                      </RequireAdmin>
                     }
                   />
                   <Route
                     path="/admin/publicites"
                     element={
-                      <RequireAuth>
+                      <RequireAdmin>
                         <AdminPromos />
-                      </RequireAuth>
+                      </RequireAdmin>
                     }
                   />
 
+                  <Route
+                    path="/admin/administrateurs"
+                    element={
+                      <RequireAdmin>
+                        <AdminUsers />
+                      </RequireAdmin>
+                    }
+                  />
+
+                    <Route path="/acces-refuse" element={<AccesRefuse />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </Suspense>
