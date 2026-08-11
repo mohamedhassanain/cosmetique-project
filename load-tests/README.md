@@ -122,7 +122,55 @@ Full metrics collected per run: `http_req_duration` (avg/p50/p90/p95/p99),
 
 | File | Content |
 |------|---------|
-| `supabase-read-load.js` | k6 read-only workload |
+| `supabase-read-load.js` | k6 read-only workload (baseline) |
+| `supabase-current-load.js` | control group (same workload as baseline) |
+| `supabase-lightweight-load.js` | experiment group (same endpoints, reduced payload/embed/count) |
+| `monitor-k6.ps1` | load-generator CPU/RAM/sockets sampler (client-bottleneck check) |
 | `.env.example` | env template (placeholders, no secrets) |
 | `results/summary-<N>vu.json` | raw k6 export per run (generated) |
-| `LOAD_TEST_REPORT.md` | final report with real measurements |
+| `results/comparison-*-<N>vu.json` | raw k6 exports of the comparison runs (generated) |
+| `LOAD_TEST_REPORT.md` | baseline report with real measurements |
+| `LOAD_TEST_COMPARISON_REPORT.md` | current-vs-lightweight diagnosis report |
+
+---
+
+## Diagnostic comparison (current vs lightweight)
+
+The second test answers: *is the bottleneck caused by heavy queries or by
+Supabase/API/PostgreSQL capacity?*
+
+Run both scripts at the same levels **sequentially** (let the system recover
+between runs). Everything is identical except the query weight:
+
+| Aspect | `supabase-current-load.js` | `supabase-lightweight-load.js` |
+|--------|----------------------------|-------------------------------|
+| Endpoints / tables / WHERE filters | same | same |
+| Browsing order, sleeps, stages, duration | same | same |
+| `select` | app's real selects (`select=*`, embeds) | only UI-rendered columns |
+| Embedded relations | `categories()`, `subcategories()`, `product_images()` | removed |
+| `Prefer: count=exact` | present (as the app sends it) | removed |
+| VU levels | 100 → 500 → 1000 → 2000 | 100 → 500 → 1000 → 2000 |
+
+Example (PowerShell) — run lightweight first at each level, then current:
+
+```powershell
+# optional: monitor the load generator
+.\load-tests\monitor-k6.ps1 -Seconds 5 -OutFile load-tests/results/machine-light-500vu.csv
+
+k6 run -e SUPABASE_URL=https://ygkeuhatokvkdwwoccty.supabase.co `
+       -e SUPABASE_ANON_KEY=<ANON_KEY> `
+       -e MAX_VUS=500 -e SUSTAIN_DURATION=2m `
+       load-tests/supabase-lightweight-load.js
+
+k6 run -e SUPABASE_URL=https://ygkeuhatokvkdwwoccty.supabase.co `
+       -e SUPABASE_ANON_KEY=<ANON_KEY> `
+       -e MAX_VUS=500 -e SUSTAIN_DURATION=2m `
+       load-tests/supabase-current-load.js
+```
+
+If the lightweight workload degrades at the same VU level with the same error
+rate, the bottleneck is **not** primarily query payload — it points at
+project/API/connection capacity. If lightweight performs clearly better, query
+complexity is a significant factor.
+
+**Do not run 5,000 VUs automatically** — if 2,000 VUs saturates, stop there.
