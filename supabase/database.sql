@@ -288,6 +288,43 @@ CREATE INDEX IF NOT EXISTS idx_orders_status_created
 CREATE INDEX IF NOT EXISTS idx_contact_messages_created_at
   ON public.contact_messages (created_at DESC);
 
+-- ═══════════════════════════════════════════════════════════════
+-- AUDIT DES INDEX (optimisation performance — 12/08/2026)
+--
+-- Les index ci-dessus couvrent DÉJÀ toutes les requêtes optimisées
+-- côté frontend (catalog, catégorie, sous-catégorie, détail, recherche) :
+--
+--   * products.slug UNIQUE                       → détail produit par slug
+--   * idx_products_search_vector GIN             → recherche plein-texte
+--   * idx_products_name_trgm / brand_trgm GIN    → recherche ilike %..%
+--   * idx_products_created_at DESC               → tri/pagination récent
+--   * idx_products_category / subcategory / active / promotion / featured
+--   * idx_subcategories_category_slug UNIQUE     → sous-catégories par catégorie
+--   * idx_orders_created_at + status_created     → pagination/dashboard admin
+--   * idx_contact_messages_created_at            → tri admin
+--
+-- Conclusion de l'audit : AUCUN index supplémentaire n'est requis pour
+-- la taille actuelle du catalogue. Deux index composites ne deviendraient
+-- utiles qu'à grande échelle (plusieurs milliers de produits) :
+--
+--   CREATE INDEX CONCURRENTLY idx_products_category_active_created
+--     ON public.products (category_id, is_active, created_at DESC)
+--     WHERE is_active = true;
+--
+--   CREATE INDEX CONCURRENTLY idx_products_promo_active_created
+--     ON public.products (created_at DESC)
+--     WHERE is_active = true AND is_promotion = true;
+--
+-- ⚠️ NE PAS exécuter ces deux index sans avoir d'abord mesuré avec
+--    EXPLAIN ANALYZE sur un volume représentatif : ils ajoutent un coût
+--    d'écriture/stockage par ligne.
+--
+-- NB : count=exact est conservé volontairement (l'UI affiche
+-- « X produit(s) » + la pagination) ; le levier d'optimisation est le
+-- cache frontend (staleTime/gcTime) + la déduplication des requêtes,
+-- déjà appliqués au 12/08/2026.
+-- ═══════════════════════════════════════════════════════════════
+
 -- ──────────────────────────────────────────────
 -- CONTRAINTES D'INTÉGRITÉ (idempotent : DROP + ADD)
 -- Empêchent des INSERT aberrants via les tables publiques
@@ -482,29 +519,6 @@ CREATE POLICY "images_admin_manage" ON storage.objects
   FOR ALL TO authenticated
   USING (bucket_id = 'cosmetics-images' AND public.is_admin())
   WITH CHECK (bucket_id = 'cosmetics-images' AND public.is_admin());
-
--- =====================================================
--- DEPLOY PUBLIC RLS POLICIES (single SQL block)
--- =====================================================
--- Utiliser ce bloc unique si le projet distant n'a pas encore les policies publiques.
--- Il reste idempotent : DROP IF EXISTS + CREATE.
-DROP POLICY IF EXISTS "orders_insert_public" ON public.orders;
-CREATE POLICY "orders_insert_public"
-  ON public.orders
-  FOR INSERT
-  WITH CHECK (true);
-
-DROP POLICY IF EXISTS "contact_messages_insert_public" ON public.contact_messages;
-CREATE POLICY "contact_messages_insert_public"
-  ON public.contact_messages
-  FOR INSERT
-  WITH CHECK (true);
-
-DROP POLICY IF EXISTS "contact_messages_admin_select" ON public.contact_messages;
-CREATE POLICY "contact_messages_admin_select"
-  ON public.contact_messages
-  FOR SELECT
-  USING (public.is_admin());
 
 -- =====================================================
 -- REFRESH SCHEMA CACHE

@@ -5,6 +5,8 @@ export interface CartItem {
   name: string;
   price: number;
   image_url: string | null;
+  /** Variante 400px (thumbnail panier) — évite de charger l'original dans le panier. */
+  image_url_400?: string | null;
   quantity: number;
 }
 

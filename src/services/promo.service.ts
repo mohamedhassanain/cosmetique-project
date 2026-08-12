@@ -14,11 +14,14 @@ function isMissingTableError(error: unknown): boolean {
     (typeof e?.message === 'string' && e.message.includes('does not exist'));
 }
 
+/** Colonnes réellement rendues par le carrousel public. */
+const PROMO_SELECT_PUBLIC = 'id, badge, title, subtitle, link, image_url, sort_order';
+
 export async function fetchActivePromos(): Promise<Promo[]> {
   try {
     const { data, error } = await supabase
       .from('promos')
-      .select('*')
+      .select(PROMO_SELECT_PUBLIC)
       .eq('is_active', true)
       .order('sort_order', { ascending: true });
 

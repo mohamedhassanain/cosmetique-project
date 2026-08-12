@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
@@ -6,6 +7,7 @@ import {
   updateCategory as apiUpdateCategory,
   deleteCategory as apiDeleteCategory,
   fetchSubcategories as apiFetchSubcategories,
+  fetchAllSubcategories as apiFetchAllSubcategories,
   createSubcategory as apiCreateSubcategory,
   updateSubcategory as apiUpdateSubcategory,
   deleteSubcategory as apiDeleteSubcategory,
@@ -81,6 +83,9 @@ export function useSubcategories(categoryId?: string) {
       return apiFetchSubcategories(categoryId);
     },
     enabled: !!categoryId,
+    // Données quasi-statiques (nom/slug) : mêmes durées que les catégories.
+    staleTime: 1000 * 60 * 10,
+    gcTime: 1000 * 60 * 15,
   });
 
   const invalidate = () =>
@@ -131,4 +136,26 @@ export function useSubcategories(categoryId?: string) {
     updateSubcategory,
     deleteSubcategory,
   };
+}
+
+/**
+ * TOUTES les sous-catégories en une seule requête (footer, menus).
+ * Remplace le N+1 « une requête par catégorie » observé sur chaque page publique.
+ */
+export function useAllSubcategories() {
+  const queryClient = useQueryClient();
+
+  const { data: subcategories = [], isLoading } = useQuery({
+    queryKey: QUERY_KEYS.subcategories(undefined),
+    queryFn: apiFetchAllSubcategories,
+    staleTime: 1000 * 60 * 10,
+    gcTime: 1000 * 60 * 15,
+  });
+
+  const invalidate = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.subcategories(undefined) }),
+    [queryClient]
+  );
+
+  return { subcategories, isLoading, invalidate };
 }

@@ -10,6 +10,10 @@ export function useSiteSettings() {
   const { data: settings, isLoading } = useQuery({
     queryKey: QUERY_KEYS.siteSettings,
     queryFn: fetchSiteSettings,
+    // Paramètres du site : données quasi-statiques (une seule ligne, modifiée
+    // uniquement par l'admin). Cache long ; invalidé après chaque mutation admin.
+    staleTime: 1000 * 60 * 15,
+    gcTime: 1000 * 60 * 30,
   });
 
   const updateSettings = useMutation({

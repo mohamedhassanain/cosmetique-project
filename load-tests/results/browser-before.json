@@ -1,0 +1,89 @@
+{
+  "capturedAt": "2026-08-12T14:02:54.270Z",
+  "note": "Catalog currently has 1 active product; page2 step skipped automatically.",
+  "cold": {
+    "home": {
+      "restRequests": 13,
+      "restBytes": 4700,
+      "imageRequests": 2,
+      "imageBytes": 109030,
+      "byUrl": {
+        "site_settings": 1,
+        "categories": 1,
+        "promos": 1,
+        "products": 1,
+        "/storage/v1/object/public/cosmetics-images/site/b90c83e4-25e1-4ae2-a90f-ab28834e65db.webp": 1,
+        "/storage/v1/object/public/cosmetics-images/products/ad46e320-18da-407c-bfa4-479f231a10a7.webp": 1,
+        "subcategories": 9
+      }
+    },
+    "catalog": {
+      "restRequests": 12,
+      "restBytes": 4360,
+      "imageRequests": 2,
+      "imageBytes": 109030,
+      "byUrl": {
+        "products": 1,
+        "categories": 1,
+        "site_settings": 1,
+        "/storage/v1/object/public/cosmetics-images/products/ad46e320-18da-407c-bfa4-479f231a10a7.webp": 1,
+        "subcategories": 9,
+        "/storage/v1/object/public/cosmetics-images/site/b90c83e4-25e1-4ae2-a90f-ab28834e65db.webp": 1
+      }
+    },
+    "detail": {
+      "restRequests": 12,
+      "restBytes": 4784,
+      "imageRequests": 2,
+      "imageBytes": 109030,
+      "byUrl": {
+        "site_settings": 1,
+        "products": 1,
+        "/storage/v1/object/public/cosmetics-images/products/ad46e320-18da-407c-bfa4-479f231a10a7.webp": 1,
+        "/storage/v1/object/public/cosmetics-images/site/b90c83e4-25e1-4ae2-a90f-ab28834e65db.webp": 1,
+        "categories": 1,
+        "subcategories": 9
+      }
+    },
+    "flowRestRequests": 37,
+    "flowRestBytes": 13844,
+    "flowImageRequests": 6,
+    "flowImageBytes": 327090
+  },
+  "warm": {
+    "home": {
+      "restRequests": 13,
+      "restBytes": 4700,
+      "imageRequests": 2,
+      "imageBytes": 109030,
+      "byUrl": {
+        "site_settings": 1,
+        "categories": 1,
+        "products": 1,
+        "promos": 1,
+        "/storage/v1/object/public/cosmetics-images/site/b90c83e4-25e1-4ae2-a90f-ab28834e65db.webp": 1,
+        "/storage/v1/object/public/cosmetics-images/products/ad46e320-18da-407c-bfa4-479f231a10a7.webp": 1,
+        "subcategories": 9
+      }
+    },
+    "catalog": {
+      "restRequests": 1,
+      "restBytes": 888,
+      "imageRequests": 0,
+      "imageBytes": 0,
+      "byUrl": {
+        "products": 1
+      }
+    },
+    "detail": {
+      "restRequests": 0,
+      "restBytes": 0,
+      "imageRequests": 0,
+      "imageBytes": 0,
+      "byUrl": {}
+    },
+    "sessionRestRequests": 14,
+    "sessionRestBytes": 5588
+  },
+  "slug": "creme-visage"
+}

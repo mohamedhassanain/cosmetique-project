@@ -1,11 +1,10 @@
 import { Link } from 'react-router-dom';
 import Logo from './Logo';
-import { useCategories, useSubcategories } from '@/hooks/useCategories';
+import { useCategories, useAllSubcategories } from '@/hooks/useCategories';
 import { MessageCircle, Flower2 } from 'lucide-react';
+import type { Subcategory } from '@/types/product';
 
-function CategoryColumn({ cat }: { cat: { id: string; name: string; slug: string } }) {
-  const { subcategories } = useSubcategories(cat.id);
-
+function CategoryColumn({ cat, subcategories }: { cat: { id: string; name: string; slug: string }; subcategories: Subcategory[] }) {
   return (
     <div>
       <Link
@@ -34,6 +33,11 @@ function CategoryColumn({ cat }: { cat: { id: string; name: string; slug: string
 
 export function Footer() {
   const { categories } = useCategories();
+  // Une seule requête pour TOUTES les sous-catégories (remplace le N+1
+  // « une requête par catégorie » observé sur chaque page).
+  const { subcategories: allSubcategories } = useAllSubcategories();
+
+  const subFor = (categoryId: string) => allSubcategories.filter((s) => s.category_id === categoryId);
 
   const chunkSize = Math.ceil(categories.length / 5);
   const col1 = categories.slice(0, chunkSize);
@@ -51,7 +55,7 @@ export function Footer() {
             {[col1, col2, col3, col4, col5].map((cols, i) => (
               <div key={i} className="space-y-6">
                 {cols.map(cat => (
-                  <CategoryColumn key={cat.id} cat={cat} />
+                  <CategoryColumn key={cat.id} cat={cat} subcategories={subFor(cat.id)} />
                 ))}
               </div>
             ))}

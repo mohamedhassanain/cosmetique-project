@@ -9,6 +9,7 @@ import { Product } from '@/types/product';
 import { useProductActions } from '@/hooks/useProductActions';
 import { useCart } from '@/providers/cart-utils';
 import { useIsDesktop } from '@/hooks/useIsDesktop';
+import { getProductDetailImage } from '@/lib/images';
 
 interface QuickViewDialogProps {
   product: Product | null;
@@ -25,6 +26,10 @@ export function QuickViewDialog({ product, isOpen, onOpenChange, onShare }: Read
 
   const images = useMemo(() => (product ? parseImages(product.image_url) : []), [product, parseImages]);
 
+  // Variante 800px pour l'image affichée dans le quick view (pas l'original 1600px).
+  const detailImage = useMemo(() => (product ? getProductDetailImage(product) : { src: '' }), [product]);
+  const primaryUrl = detailImage.src || images[0] || '';
+
   // Sur PC (souris), le lien vers la fiche complète s'ouvre dans un nouvel onglet.
   // Sur mobile et tablette, la navigation actuelle est conservée.
   const productLinkProps = isDesktop
@@ -39,6 +44,7 @@ export function QuickViewDialog({ product, isOpen, onOpenChange, onShare }: Read
       name: product.name,
       price: product.price,
       image_url: images[0] || null,
+      image_url_400: product.image_url_400,
     });
   };
 
@@ -52,7 +58,17 @@ export function QuickViewDialog({ product, isOpen, onOpenChange, onShare }: Read
           <div className="bg-pink-50 md:h-full flex flex-col overflow-hidden">
             <div className="relative w-full aspect-square md:aspect-auto md:flex-1 overflow-hidden">
               {images.length > 0 ? (
-                <img src={images[imageIndex]} alt={product.name} className="w-full h-full object-cover" />
+                <img
+                  src={imageIndex === 0 ? primaryUrl : images[imageIndex]}
+                  srcSet={imageIndex === 0 ? detailImage.srcSet : undefined}
+                  sizes={imageIndex === 0 ? detailImage.sizes : undefined}
+                  alt={product.name}
+                  loading="lazy"
+                  decoding="async"
+                  width={800}
+                  height={800}
+                  className="w-full h-full object-cover"
+                />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
                   <Package className="h-20 w-20 text-pink-200" />

@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   fetchAllProducts,
@@ -88,12 +88,30 @@ export function useActiveProducts() {
 }
 
 export function usePublicProducts(filters: ProductFilters = {}) {
+  const queryClient = useQueryClient();
+  const page = filters.page ?? 1;
+
   const { data, isLoading } = useQuery({
     queryKey: QUERY_KEYS.publicProducts(filters),
     queryFn: () => fetchPublicProducts(filters),
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 10,
+    // La page précédente reste affichée pendant le chargement de la suivante :
+    // pas de flash de skeletons à chaque changement de page.
+    placeholderData: keepPreviousData,
   });
+
+  // Prefetch de la page suivante UNIQUEMENT (page immédiatement pertinente) :
+  // au clic sur « suivant », la page est déjà dans le cache.
+  // Le total exact reste fourni par fetchPublicProducts (count=exact) : l'UI
+  // affiche « X produit(s) » et la pagination — le count est donc requis.
+  if (data && page < (data.totalPages ?? 1)) {
+    void queryClient.prefetchQuery({
+      queryKey: QUERY_KEYS.publicProducts({ ...filters, page: page + 1 }),
+      queryFn: () => fetchPublicProducts({ ...filters, page: page + 1 }),
+      staleTime: 1000 * 60 * 5,
+    });
+  }
 
   return {
     products: data?.products || [],

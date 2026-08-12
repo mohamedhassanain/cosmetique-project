@@ -37,6 +37,8 @@ export const ProductCard = memo(function ProductCard({ product }: Readonly<Produ
       name: product.name,
       price: product.price,
       image_url: displayImage || null,
+      // Variante 400px pour la miniature panier (pas l'original 1600px).
+      image_url_400: product.image_url_400,
     });
   };
 

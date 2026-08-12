@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { useCategories, useSubcategories } from '@/hooks/useCategories';
+import { useCategories, useAllSubcategories } from '@/hooks/useCategories';
 import { Flower2, ArrowRight, X, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -23,7 +23,13 @@ export function CategoryMegaMenu() {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerCategory, setDrawerCategory] = useState<string | null>(null);
-  const { subcategories } = useSubcategories(drawerCategory || activeCategory || undefined);
+  // Toutes les sous-catégories en UNE requête (partagée avec le footer) :
+  // plus aucun appel Supabase par survol de catégorie.
+  const { subcategories } = useAllSubcategories();
+  const activeCategoryId = drawerCategory || activeCategory;
+  const filteredSubcategories = activeCategoryId
+    ? subcategories.filter((s) => s.category_id === activeCategoryId)
+    : [];
   const timeoutRef = useRef<ReturnType<typeof setTimeout>>();
   const isNarrow = useIsNarrow();
 
@@ -55,10 +61,10 @@ export function CategoryMegaMenu() {
     };
   }, []);
 
-  const activeCat = categories.find((c) => c.id === (drawerCategory || activeCategory));
-  const midpoint = Math.ceil(subcategories.length / 2);
-  const leftSubs = subcategories.slice(0, midpoint);
-  const rightSubs = subcategories.slice(midpoint);
+  const activeCat = categories.find((c) => c.id === activeCategoryId);
+  const midpoint = Math.ceil(filteredSubcategories.length / 2);
+  const leftSubs = filteredSubcategories.slice(0, midpoint);
+  const rightSubs = filteredSubcategories.slice(midpoint);
 
   if (categories.length === 0) return null;
 
@@ -103,7 +109,7 @@ export function CategoryMegaMenu() {
             onMouseLeave={hide}
           >
             <div className="max-w-7xl mx-auto">
-              <CategoryPanelContent category={activeCat} subcategories={subcategories} leftSubs={leftSubs} rightSubs={rightSubs} />
+              <CategoryPanelContent category={activeCat} subcategories={filteredSubcategories} leftSubs={leftSubs} rightSubs={rightSubs} />
             </div>
           </div>
         )}

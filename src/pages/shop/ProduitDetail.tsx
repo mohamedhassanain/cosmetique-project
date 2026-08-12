@@ -117,7 +117,7 @@ export default function ProduitDetail() {
                   const isPrimary = mediaIndex === 0;
                   return (
                     <img
-                      src={currentMedia.url}
+                      src={isPrimary && detailImage.src ? detailImage.src : currentMedia.url}
                       srcSet={isPrimary ? detailImage.srcSet : undefined}
                       sizes={isPrimary ? detailImage.sizes : undefined}
                       alt={product.name}

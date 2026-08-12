@@ -8,7 +8,9 @@ import { slugify } from '@/lib/utils';
 export async function fetchCategories(): Promise<Category[]> {
   const { data, error } = await supabase
     .from('categories')
-    .select('*')
+    // Uniquement les colonnes rendues par l'UI (nav, menu, footer, filtres).
+    // Le tri serveur par sort_order fonctionne sans sélectionner la colonne.
+    .select('id, name, slug')
     .order('sort_order', { ascending: true });
 
   if (error) throw error;
@@ -64,8 +66,22 @@ export async function deleteCategory(id: string): Promise<void> {
 export async function fetchSubcategories(categoryId: string): Promise<Subcategory[]> {
   const { data, error } = await supabase
     .from('subcategories')
-    .select('*')
+    .select('id, category_id, name, slug')
     .eq('category_id', categoryId)
+    .order('sort_order', { ascending: true });
+
+  if (error) throw error;
+  return (data || []) as Subcategory[];
+}
+
+/**
+ * Toutes les sous-catégories en UNE requête (footer, menus).
+ * Remplace le pattern N+1 où le footer déclenchait une requête par catégorie.
+ */
+export async function fetchAllSubcategories(): Promise<Subcategory[]> {
+  const { data, error } = await supabase
+    .from('subcategories')
+    .select('id, category_id, name, slug')
     .order('sort_order', { ascending: true });
 
   if (error) throw error;

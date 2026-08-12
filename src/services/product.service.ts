@@ -84,10 +84,22 @@ const PRODUCT_SELECT_ADMIN = `
 
 const PRODUCT_SELECT_PUBLIC = `
   id, name, slug, price, original_price,
-  is_promotion, is_featured, image_url, image_url_400, image_url_800, brand, created_at,
+  is_promotion, is_featured, image_url, image_url_400, image_url_800, brand,
   category_id, subcategory_id,
-  categories(name, slug),
-  subcategories(name)
+  categories(name, slug)
+`;
+
+/**
+ * Fiche produit PUBLIQUE : uniquement les champs rendus par la page publique.
+ * (Avant : l'admin select complet + jointures product_images/subcategories inutilisées.)
+ */
+const PRODUCT_SELECT_PUBLIC_DETAIL = `
+  id, name, slug, description, ingredients, how_to_use,
+  price, original_price, is_promotion, is_featured,
+  image_url, image_url_800, video_url, category_id, subcategory_id,
+  stock_quantity, weight_grams, brand,
+  location_city, location_url, show_location,
+  categories(name, slug)
 `;
 
 export interface AdminProductFilters {
@@ -232,7 +244,7 @@ export async function fetchPublicProducts(filters: ProductFilters = {}): Promise
 export async function fetchProductBySlug(slug: string): Promise<Product | null> {
   const { data, error } = await supabase
     .from('products')
-    .select(PRODUCT_SELECT_ADMIN)
+    .select(PRODUCT_SELECT_PUBLIC_DETAIL)
     .eq('slug', slug)
     .eq('is_active', true)
     .single();
