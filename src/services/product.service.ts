@@ -155,14 +155,22 @@ export async function fetchAllProducts(filters: AdminProductFilters = {}): Promi
   };
 }
 
-/** Produits actifs limités (page d'accueil) — évite de charger tout le catalogue. */
+/**
+ * Produits actifs limités (page d'accueil) — évite de charger tout le catalogue.
+ *
+ * 24 produits : la page d'accueil affiche uniquement des carrousels horizontaux
+ * (Recommandé, Promotions, sections par catégorie) filtrés depuis ce lot — aucun
+ * total ni pagination n'est affiché. 24 couvrent largement le premier écran de
+ * chaque carrousel et réduisent le payload initial (~60%). Les sections « voir
+ * tout » redirigent vers /produits qui charge le catalogue paginé à la demande.
+ */
 export async function fetchActiveProducts(): Promise<Product[]> {
   const { data, error } = await supabase
     .from('products')
     .select(PRODUCT_SELECT_PUBLIC)
     .eq('is_active', true)
     .order('created_at', { ascending: false })
-    .limit(60);
+    .limit(24);
 
   if (error) throw error;
   return (data || []) as unknown as Product[];

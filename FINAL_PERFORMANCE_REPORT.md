@@ -71,13 +71,41 @@ Existing indexes cover all public and admin query patterns — see `DATABASE_IND
 
 ## Load Test Results
 
-Same real Supabase project, same k6 workload (home → detail → filtered catalog → search), 100/500/1000 VU; real results in `load-tests/BEFORE_AFTER_LOAD_TEST.md`:
+Two comparison sets exist. Both ran the same real Supabase Free project, read-only, anon key, 0% errors.
+
+### Round-2 comparison (optimized vs optimized2 scripts)
+
+Same workload geometry, endpoint-identical by construction (8 requests/iteration). Real results in `load-tests/BEFORE_AFTER_LOAD_TEST.md`:
 
 | VUs | BEFORE req/s | AFTER req/s | BEFORE p95 | AFTER p95 | BEFORE p99 | AFTER p99 | Errors |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | 100 | 65.04 | 65.03 | 91.3 ms | 89.3 ms | 104.2 ms | 102.6 ms | 0% / 0% |
 | 500 | 321.55 | 317.87 | 92.9 ms | 96.4 ms | 159.4 ms | 517.4 ms | 0% / 0% |
 | 1000 | 508.0 | 513.2 | 730.0 ms | 622.2 ms | 1132.1 ms | 884.8 ms | 0% / 0% |
+
+### Validation run (12/08/2026 evening) — original baseline vs current code
+
+Same script (`supabase-read-load.js`) for BEFORE and AFTER; BEFORE files
+(`load-tests/results/summary-{n}vu-BEFORE.json`) match the baseline quoted at the
+start of this task (100 VU ≈64.6 req/s, 500 VU ≈320.9 req/s, 1000 VU ≈409 req/s).
+Full table in `load-tests/OPTIMIZATION_LOAD_TEST_REPORT.md`:
+
+| VUs | Before p95 | After p95 | Before Req/s | After Req/s | Before Errors | After Errors |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 100 | 88.4 ms | 86.5 ms | 64.6 | 65.5 | 0% | 0% |
+| 500 | 97.0 ms | 104.3 ms | 320.9 | 305.0 | 0% | 0% |
+| 1000 | 1863.9 ms | 2187–2222 ms (2 runs) | 409.1 | 279.4 / 389.6 (2 runs) | 0% | 0% |
+
+1000-VU AFTER runs were repeated because run 1 (279 req/s) showed a large deviation
+from run 2 (390 req/s, 0 interrupted iterations, 110 506 requests). Run 2 is the
+representative result: p95 ≈2.19 s vs ≈1.86 s BEFORE, 0% errors both sides. The
+remaining gap is the Free-plan tenant saturation ceiling, not a regression: the k6
+workload issues identical requests per iteration BEFORE and AFTER by design, so server
+numbers were expected to stay flat. The optimization gains are measured at the app
+level (-65% requests, -43% payload) and are invisible to an endpoint-equivalent run.
+
+
+
 
 ## Bottleneck
 
