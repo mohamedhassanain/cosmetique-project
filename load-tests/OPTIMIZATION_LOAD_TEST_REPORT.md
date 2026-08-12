@@ -54,6 +54,47 @@ BEFORE runs (source: `summary-{n}vu-BEFORE.json`):
   matches the BEFORE run's geometry (114 082 requests). **The server-side ceiling is
   unchanged, as expected: the k6 workload is endpoint-identical by construction.**
 
+## Endpoint isolation runs (per-endpoint bottleneck)
+
+Additional read-only runs against the same real Supabase Free project, isolating each
+public endpoint (`load-tests/k6-isolated.js`, anon key, real Supabase, 0% failures in
+every run). Duration: 20s ramp-up / 60s sustain / 20s ramp-down (2m10s max).
+
+Requests per iteration (from the script):
+
+- **HOME** = 5 (`site_settings`, `categories`, `subcategories`, `promos`, `products`)
+- **CATALOG** = 3 (`categories`, `subcategories`, `products`)
+- **SEARCH** = 1 (`products` with `or=(search_vector.phfts…, name.ilike…, brand.ilike…)`)
+- **DETAIL** = 1 (`products` by slug)
+
+| Endpoint | req/iter | 100 VU p95 | 500 VU p95 | 1000 VU p95 | 1000 VU max | 1000 VU req/s | 1000 VU errors |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| HOME | 5 | 84.9 ms | 272.1 ms | 2 722.5 ms | 42 240 ms | 463.9 | 0% |
+| CATALOG | 3 | 85.6 ms | 87.5 ms | 714.2 ms | 7 528 ms | 560.0 | 0% |
+| SEARCH | 1 | 88.4 ms | 86.2 ms | 86.9 ms | 703 ms | 217.0 | 0% |
+| DETAIL | 1 | 87.9 ms | 89.2 ms | — | — | — | 0% |
+
+Source files: `load-tests/results/k6-{home,catalog,search,detail}-{100,500,1000}vu.json`.
+
+### Interpretation of isolated runs
+
+- At **100 VU** every endpoint is identical (~85–88 ms p95). No query is intrinsically
+  slow.
+- At **1000 VU** the pattern is decisive: endpoints that issue **multiple REST calls per
+  iteration** collapse (HOME 5 req/iter → p95 2.7 s; CATALOG 3 req/iter → p95 714 ms),
+  while single-request endpoints stay healthy (SEARCH 1 req/iter → p95 87 ms).
+- **SEARCH is NOT a bottleneck.** The `or=(search_vector.phfts…, name.ilike…,
+  brand.ilike…)` query sustains ~217 req/s at p95 87 ms with 0% errors at 1000 VU. ILIKE
+  only degrades at the same request-volume ceiling as every other query — it does not
+  degrade earlier.
+- **Conclusion:** the limiting factor is the number of **concurrent PostgREST requests
+  per iteration**, not query complexity or index coverage for the current catalog size.
+  Each extra REST call per page view multiplies PostgREST connection occupancy, and the
+  Free-plan tenant saturates at roughly 400–600 req/s before latency degrades sharply.
+  This is exactly why the client-side request reductions (37 → 13 cold, 14 → 6 warm,
+  see `REQUEST_OPTIMIZATION_REPORT.md`) raise the effective capacity: fewer REST calls
+  per page view means more concurrent users fit under the same req/s ceiling.
+
 ## What this test does NOT show
 
 The k6 endpoint test is deliberately insensitive to the client-side optimizations
