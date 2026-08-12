@@ -9,6 +9,7 @@ import { useProductActions } from '@/hooks/useProductActions';
 import { useCart } from '@/providers/cart-utils';
 import { useIsDesktop } from '@/hooks/useIsDesktop';
 import { getProductCardImage } from '@/lib/images';
+import { getPromoDisplay } from '@/lib/product-promo';
 
 interface ProductCardProps {
   product: Product;
@@ -22,6 +23,7 @@ export const ProductCard = memo(function ProductCard({ product }: Readonly<Produ
   const images = parseImages(product.image_url);
   const displayImage = images[0];
   const cardImage = getProductCardImage(product);
+  const promo = getPromoDisplay(product);
 
   // Sur PC (souris), la fiche produit s'ouvre dans un nouvel onglet.
   // Sur mobile et tablette (tactile), la navigation actuelle est conservée.
@@ -72,12 +74,10 @@ export const ProductCard = memo(function ProductCard({ product }: Readonly<Produ
           
           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
 
-          {product.is_promotion && (
+          {promo && (
             <div className="absolute top-3 left-3 z-20">
               <Badge className="bg-red-400 hover:bg-red-500 border-none px-2 py-0.5 shadow-lg text-xs">
-                {product.original_price && product.original_price > product.price
-                  ? `-${Math.round(((product.original_price - product.price) / product.original_price) * 100)}%`
-                  : 'PROMO'}
+                -{promo.percent}%
               </Badge>
             </div>
           )}
@@ -104,9 +104,9 @@ export const ProductCard = memo(function ProductCard({ product }: Readonly<Produ
         )}
         
         <div className="flex items-baseline gap-2 mt-1 mb-3">
-          <span className="font-black text-lg text-pink-700">{product.price} DH</span>
-          {product.is_promotion && product.original_price ? (
-            <span className="text-xs text-pink-300 line-through">{product.original_price} DH</span>
+          <span className="font-black text-lg text-pink-700">{promo ? promo.currentPrice : product.price} DH</span>
+          {promo ? (
+            <span className="text-xs text-pink-300 line-through">{promo.oldPrice} DH</span>
           ) : null}
         </div>
 

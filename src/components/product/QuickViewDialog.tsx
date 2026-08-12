@@ -10,6 +10,7 @@ import { useProductActions } from '@/hooks/useProductActions';
 import { useCart } from '@/providers/cart-utils';
 import { useIsDesktop } from '@/hooks/useIsDesktop';
 import { getProductDetailImage } from '@/lib/images';
+import { getPromoDisplay } from '@/lib/product-promo';
 
 interface QuickViewDialogProps {
   product: Product | null;
@@ -37,6 +38,8 @@ export function QuickViewDialog({ product, isOpen, onOpenChange, onShare }: Read
     : {};
 
   if (!product) return null;
+
+  const promo = getPromoDisplay(product);
 
   const handleAddToCart = () => {
     addToCart({
@@ -74,12 +77,10 @@ export function QuickViewDialog({ product, isOpen, onOpenChange, onShare }: Read
                   <Package className="h-20 w-20 text-pink-200" />
                 </div>
               )}
-              {product.is_promotion ? (
+              {promo ? (
                 <div className="absolute top-4 left-4">
                   <Badge className="bg-red-400 text-white px-3 py-1 text-sm font-black shadow-lg border-none">
-                    {product.original_price && product.original_price > product.price
-                      ? `-${Math.round(((product.original_price - product.price) / product.original_price) * 100)}%`
-                      : 'PROMO'}
+                    -{promo.percent}%
                   </Badge>
                 </div>
               ) : null}
@@ -131,9 +132,9 @@ export function QuickViewDialog({ product, isOpen, onOpenChange, onShare }: Read
                 </div>
 
                 <div className="flex items-baseline gap-3">
-                  <span className="text-3xl md:text-4xl font-black text-pink-600">{product.price} DH</span>
-                  {product.is_promotion && product.original_price ? (
-                    <span className="text-lg text-pink-300 line-through">{product.original_price} DH</span>
+                  <span className="text-3xl md:text-4xl font-black text-pink-600">{promo ? promo.currentPrice : product.price} DH</span>
+                  {promo ? (
+                    <span className="text-lg text-pink-300 line-through">{promo.oldPrice} DH</span>
                   ) : null}
                 </div>
 

@@ -12,6 +12,7 @@ import { useCart } from '@/providers/cart-utils';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { useProductBySlug } from '@/hooks/useProducts';
 import { getProductDetailImage } from '@/lib/images';
+import { getPromoDisplay } from '@/lib/product-promo';
 import { useSeo } from '@/hooks/useSeo';
 import { ShoppingCart, MessageCircle, Share2, ChevronLeft, ChevronRight, Sparkles, Leaf, Flower2, Package, Play, MapPin, Navigation, X } from 'lucide-react';
 
@@ -92,6 +93,8 @@ export default function ProduitDetail() {
     );
   }
 
+  const promo = getPromoDisplay(product);
+
   return (
     <div className="min-h-screen bg-[#fef8fa]">
       <header className="border-b border-pink-100 bg-white/80 backdrop-blur-md sticky top-0 z-50">
@@ -121,7 +124,6 @@ export default function ProduitDetail() {
                       srcSet={isPrimary ? detailImage.srcSet : undefined}
                       sizes={isPrimary ? detailImage.sizes : undefined}
                       alt={product.name}
-                      fetchPriority="high"
                       loading="eager"
                       decoding="async"
                       width={800}
@@ -149,11 +151,9 @@ export default function ProduitDetail() {
                 <div className="w-full h-full flex items-center justify-center"><Package className="h-20 w-20 text-pink-200" /></div>
               )}
               
-              {product.is_promotion && (
+              {promo && (
                 <Badge className="absolute top-4 left-4 bg-red-400 text-white border-none px-3 py-1 shadow-lg">
-                  {product.original_price && product.original_price > product.price
-                    ? `-${Math.round(((product.original_price - product.price) / product.original_price) * 100)}%`
-                    : 'PROMO'}
+                  -{promo.percent}%
                 </Badge>
               )}
               {product.is_featured && (
@@ -206,9 +206,9 @@ export default function ProduitDetail() {
             </div>
 
             <div className="flex items-baseline gap-3">
-              <span className="text-4xl font-bold text-pink-700">{product.price} DH</span>
-              {product.is_promotion && product.original_price && (
-                <span className="text-xl text-pink-300 line-through">{product.original_price} DH</span>
+              <span className="text-4xl font-bold text-pink-700">{promo ? promo.currentPrice : product.price} DH</span>
+              {promo && (
+                <span className="text-xl text-pink-300 line-through">{promo.oldPrice} DH</span>
               )}
             </div>
 
