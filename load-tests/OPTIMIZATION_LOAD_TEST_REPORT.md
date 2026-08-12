@@ -67,21 +67,28 @@ Requests per iteration (from the script):
 - **SEARCH** = 1 (`products` with `or=(search_vector.phfts…, name.ilike…, brand.ilike…)`)
 - **DETAIL** = 1 (`products` by slug)
 
-| Endpoint | req/iter | 100 VU p95 | 500 VU p95 | 1000 VU p95 | 1000 VU max | 1000 VU req/s | 1000 VU errors |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| HOME | 5 | 84.9 ms | 272.1 ms | 2 722.5 ms | 42 240 ms | 463.9 | 0% |
-| CATALOG | 3 | 85.6 ms | 87.5 ms | 714.2 ms | 7 528 ms | 560.0 | 0% |
-| SEARCH | 1 | 88.4 ms | 86.2 ms | 86.9 ms | 703 ms | 217.0 | 0% |
-| DETAIL | 1 | 87.9 ms | 89.2 ms | — | — | — | 0% |
+| Endpoint | req/iter | 100 VU p95 | 500 VU p95 | 750 VU p95 | 1000 VU p95 | 1000 VU max | 1000 VU req/s | 1000 VU errors |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| HOME | 5 | 84.9 ms | 272.1 ms | — | 2 722.5 ms | 42 240 ms | 463.9 | 0% |
+| CATALOG | 3 | 85.6 ms | 87.5 ms | 1 063.3 ms | 714.2 ms | 7 528 ms | 560.0 | 0% |
+| SEARCH | 1 | 88.4 ms | 86.2 ms | — | 86.9 ms | 703 ms | 217.0 | 0% |
+| DETAIL | 1 | 87.9 ms | 89.2 ms | — | — | — | — | 0% |
 
-Source files: `load-tests/results/k6-{home,catalog,search,detail}-{100,500,1000}vu.json`.
+Source files: `load-tests/results/k6-{home,catalog,search,detail}-{100,500,750,1000}vu.json`.
 
 ### Interpretation of isolated runs
 
 - At **100 VU** every endpoint is identical (~85–88 ms p95). No query is intrinsically
   slow.
+- A **750-VU CATALOG follow-up run** (20s ramp-up / 60s sustain / 20s ramp-down, real
+  Supabase, `load-tests/results/k6-catalog-750vu.json`; 42 986 requests, 411.6 req/s,
+  0% errors, median 79 ms) shows the saturation knee for this 3-requests-per-page
+  endpoint: p95 jumps 87.5 ms (500 VU) → 1 063 ms (750 VU), p99 4 326 ms, max 6 077 ms.
+  The observed throughput (≈412 req/s at 750 VU) sits right at the ~400–600 req/s
+  tenant ceiling, confirming PostgREST connection occupancy as the limiting factor.
 - At **1000 VU** the pattern is decisive: endpoints that issue **multiple REST calls per
-  iteration** collapse (HOME 5 req/iter → p95 2.7 s; CATALOG 3 req/iter → p95 714 ms),
+  iteration** collapse (HOME 5 req/iter → p95 2.7 s; CATALOG 3 req/iter → p95 714 ms on
+  a separate 1000-VU run — high run-to-run variance, the 750-VU run already degraded),
   while single-request endpoints stay healthy (SEARCH 1 req/iter → p95 87 ms).
 - **SEARCH is NOT a bottleneck.** The `or=(search_vector.phfts…, name.ilike…,
   brand.ilike…)` query sustains ~217 req/s at p95 87 ms with 0% errors at 1000 VU. ILIKE
@@ -94,6 +101,24 @@ Source files: `load-tests/results/k6-{home,catalog,search,detail}-{100,500,1000}
   This is exactly why the client-side request reductions (37 → 13 cold, 14 → 6 warm,
   see `REQUEST_OPTIMIZATION_REPORT.md`) raise the effective capacity: fewer REST calls
   per page view means more concurrent users fit under the same req/s ceiling.
+
+## Search A/B latency sweep (real Supabase, anon key, read-only)
+
+`load-tests/search-ab-bench.mjs` compares the current client search (A:
+`or=(search_vector.phfts…, name.ilike…, brand.ilike…)`) against a search_vector-only
+variant (B: `search_vector=fts.<term>`) over 5 query classes (common term, brand,
+partial term, rare term, short term), 25 samples each after 5 warm-ups per variant.
+
+Result: **A ≈ B in latency** — p50 82–84 ms vs 81–86 ms, p95 87–94 ms vs 87–101 ms,
+0 errors in all 250 samples. Production currently has 0 `is_active=true` products
+(rowCount 0), so result-quality could not be compared on real data.
+
+**Decision: keep variant A (current implementation).** It is at least as fast as B and
+additionally covers substring matches (name/brand `ilike`) that B cannot produce; the
+`search_vector` tsquery path alone would lose partial-match results once the catalog is
+populated. No production change was made based on this sweep.
+
+[Response interrupted by API Error]
 
 ## What this test does NOT show
 
@@ -113,8 +138,5 @@ level — see `REQUEST_OPTIMIZATION_REPORT.md`:
 - AFTER: `load-tests/results/summary-100vu-AFTER.json`, `summary-500vu.json`, `summary-1000vu.json`
   (100-VU AFTER run is stored as `summary-100vu-AFTER.json`; `summary-100vu.json` remains the
   original tracked baseline file)
-
-
-
 
 - Script: `load-tests/supabase-read-load.js`
