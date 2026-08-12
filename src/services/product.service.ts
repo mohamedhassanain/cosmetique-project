@@ -34,6 +34,10 @@ export interface ProductFilters {
   search?: string;
   category_slug?: string | null;
   subcategory_slug?: string | null;
+  /** Résolu côté client (cache catégories) — évite la requête slug→id serveur. */
+  category_id?: string | null;
+  /** Résolu côté client (cache sous-catégories) — évite la requête slug→id serveur. */
+  subcategory_id?: string | null;
   promo?: boolean;
   featured?: boolean;
   sort?: 'newest' | 'price-asc' | 'price-desc';
@@ -43,8 +47,8 @@ export interface ProductFilters {
 
 export interface PublicProductsResult {
   products: Product[];
-  total: number;
-  totalPages: number;
+  /** Vrai si une page suivante existe (détecté via limit = pageSize + 1). */
+  hasNextPage: boolean;
   page: number;
 }
 
@@ -169,6 +173,8 @@ export async function fetchPublicProducts(filters: ProductFilters = {}): Promise
     search = '',
     category_slug = null,
     subcategory_slug = null,
+    category_id: providedCategoryId = null,
+    subcategory_id: providedSubcategoryId = null,
     promo = false,
     featured: featuredFilter = false,
     sort = 'newest',
@@ -178,9 +184,14 @@ export async function fetchPublicProducts(filters: ProductFilters = {}): Promise
 
   // pageSize est borné [1, MAX_PAGE_SIZE] : impossible de demander un volume abusif.
   const safePageSize = Math.min(Math.max(pageSize, 1), MAX_PAGE_SIZE);
+  // Page bornée ≥ 1 : un paramètre URL abusif ne peut pas provoquer d'offset négatif.
+  const safePage = Math.max(1, Math.floor(page));
 
-  let categoryId: string | null = null;
-  if (category_slug) {
+  // Résolution slug → id. La voie normale est le cache client (ids fournis par le
+  // composant) ; le fallback serveur ci-dessous n'est utilisé que si l'id manque
+  // (lien direct/partage sans catégories encore en cache) — au prix de 1 requête.
+  let categoryId = providedCategoryId;
+  if (!categoryId && category_slug) {
     const { data: cat } = await supabase
       .from('categories')
       .select('id')
@@ -189,10 +200,9 @@ export async function fetchPublicProducts(filters: ProductFilters = {}): Promise
     categoryId = cat?.id || null;
   }
 
-  let subcategoryId: string | null = null;
-  if (subcategory_slug && categoryId) {
+  let subcategoryId = providedSubcategoryId;
+  if (!subcategoryId && subcategory_slug && categoryId) {
     // Résolution fiable par slug exact (accents/casse normalisés), sans ILIKE.
-    // Chaînes séparées pour éviter les types trop profonds du builder Supabase.
     const { data: sub } = await supabase
       .from('subcategories')
       .select('id')
@@ -202,9 +212,14 @@ export async function fetchPublicProducts(filters: ProductFilters = {}): Promise
     subcategoryId = sub?.id ?? null;
   }
 
+  // PAS de count=exact : « Y a-t-il une page suivante ? » est détecté en demandant
+  // safePageSize + 1 lignes. Si l'API renvoie plus de safePageSize lignes, une page
+  // suivante existe — on n'affiche que les safePageSize premières. Le COUNT(*) exact
+  // sur l'ensemble filtré (coûteux à forte charge) est ainsi éliminé ; le total exact
+  // « X produit(s) » n'est plus affiché (voir PERFORMANCE_AUDIT.md, phase 3).
   let query = supabase
     .from('products')
-    .select(PRODUCT_SELECT_PUBLIC, { count: 'exact' })
+    .select(PRODUCT_SELECT_PUBLIC)
     .eq('is_active', true);
 
   if (categoryId) query = query.eq('category_id', categoryId);
@@ -227,17 +242,18 @@ export async function fetchPublicProducts(filters: ProductFilters = {}): Promise
   else if (sort === 'price-desc') query = query.order('price', { ascending: false });
   else query = query.order('created_at', { ascending: false });
 
-  const from = (page - 1) * safePageSize;
-  query = query.range(from, from + safePageSize - 1);
+  const from = (safePage - 1) * safePageSize;
+  query = query.range(from, from + safePageSize); // +1 ligne pour détecter hasNextPage
 
-  const { data, error, count } = await query;
+  const { data, error } = await query;
   if (error) throw error;
 
+  const rows = (data || []) as unknown as Product[];
+  const hasNextPage = rows.length > safePageSize;
   return {
-    products: (data || []) as unknown as Product[],
-    total: count || 0,
-    totalPages: Math.ceil((count || 0) / safePageSize),
-    page,
+    products: rows.slice(0, safePageSize),
+    hasNextPage,
+    page: safePage,
   };
 }
 

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
@@ -87,13 +88,14 @@ export function useActiveProducts() {
   };
 }
 
-export function usePublicProducts(filters: ProductFilters = {}) {
+export function usePublicProducts(filters: ProductFilters = {}, enabled = true) {
   const queryClient = useQueryClient();
   const page = filters.page ?? 1;
 
   const { data, isLoading } = useQuery({
     queryKey: QUERY_KEYS.publicProducts(filters),
     queryFn: () => fetchPublicProducts(filters),
+    enabled,
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 10,
     // La page précédente reste affichée pendant le chargement de la suivante :
@@ -101,22 +103,32 @@ export function usePublicProducts(filters: ProductFilters = {}) {
     placeholderData: keepPreviousData,
   });
 
+  const hasNextPage = data?.hasNextPage ?? false;
+
   // Prefetch de la page suivante UNIQUEMENT (page immédiatement pertinente) :
   // au clic sur « suivant », la page est déjà dans le cache.
-  // Le total exact reste fourni par fetchPublicProducts (count=exact) : l'UI
-  // affiche « X produit(s) » et la pagination — le count est donc requis.
-  if (data && page < (data.totalPages ?? 1)) {
+  // Effectué dans useEffect (plus d'effet de bord pendant le rendu) et gardé
+  // par une vérification de fraîcheur : si le cache contient déjà une requête
+  // en cours ou fraîche, on ne relance pas de fetch.
+  const nextPageKey = QUERY_KEYS.publicProducts({ ...filters, page: page + 1 });
+  useEffect(() => {
+    if (!hasNextPage) return;
+    // Ne pas dupliquer : si la page suivante est déjà en cours de fetch
+    // ou fraîche dans le cache (staleTime), on ne relance rien.
+    if (queryClient.isFetching({ queryKey: nextPageKey }) > 0) return;
+    const existing = queryClient.getQueryState(nextPageKey);
+    const isFresh = (existing?.dataUpdatedAt ?? 0) > Date.now() - 1000 * 60 * 5;
+    if (existing && isFresh) return;
     void queryClient.prefetchQuery({
-      queryKey: QUERY_KEYS.publicProducts({ ...filters, page: page + 1 }),
+      queryKey: nextPageKey,
       queryFn: () => fetchPublicProducts({ ...filters, page: page + 1 }),
       staleTime: 1000 * 60 * 5,
     });
-  }
+  }, [hasNextPage, nextPageKey, queryClient, filters, page]);
 
   return {
     products: data?.products || [],
-    total: data?.total || 0,
-    totalPages: data?.totalPages || 0,
+    hasNextPage,
     currentPage: data?.page || 1,
     isLoading,
   };

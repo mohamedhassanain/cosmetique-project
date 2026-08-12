@@ -1,0 +1,18 @@
+{
+  "capturedAt": "2026-08-12T15:29:00.000Z",
+  "url": "http://localhost:8082/produits?categorie=soins-visage",
+  "totalRestRequests": 4,
+  "byTable": {
+    "site_settings": 1,
+    "categories": 1,
+    "subcategories": 1,
+    "products": 1
+  },
+  "requests": [
+    "site_settings?select=*&limit=1",
+    "categories?select=id%2Cname%2Cslug&order=sort_order.asc",
+    "subcategories?select=id%2Ccategory_id%2Cname%2Cslug&order=sort_order.asc",
+    "products?select=id%2Cname%2Cslug%2Cprice%2Coriginal_price%2Cis_promotion%2Cis_featured%2Cimage_url%2Cimage_url_400%2Cimage_url_800%2Cbrand%2Ccategory_id%2Csubcategory_id%2Ccategories%28name%2Cslug%29&is_active=eq.true&category_id=eq.386c0062-dcfa-4517-9d97-0d482c0bed0f&order=created_at.desc&offset=0&limit=17"
+  ],
+  "note": "AFTER round-2: client slug->id resolution removed the 2 lookup requests; count=exact removed (limit=17 probe). Products query is server-side filtered by category_id directly. BEFORE (round-1) would be 6: +2 slug->id lookups (categories, subcategories). site_settings is always fetched (layout), so total is 4, not 3."
+}

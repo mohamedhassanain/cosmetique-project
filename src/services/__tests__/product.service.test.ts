@@ -153,40 +153,77 @@ describe('product.service', () => {
   });
 
   describe('fetchPublicProducts', () => {
-    it('range pageSize à MAX_PAGE_SIZE', async () => {
-      mockedFrom.mockReturnValueOnce(createBuilder({ data: [], error: null, count: 0 }));
+    it('range pageSize à MAX_PAGE_SIZE + 1 ligne de détection', async () => {
+      mockedFrom.mockReturnValueOnce(createBuilder({ data: [], error: null }));
 
       await fetchPublicProducts({ page: 1, pageSize: 9999 });
 
       const builder = mockedFrom.mock.results[0].value as Record<string, ReturnType<typeof vi.fn>>;
-      // range(from, from + safePageSize - 1) avec safePageSize = 100
-      expect(builder.range).toHaveBeenCalledWith(0, MAX_PAGE_SIZE - 1);
+      // limit = MAX_PAGE_SIZE + 1 : 100 lignes pour détecter hasNextPage sans COUNT(*).
+      expect(builder.range).toHaveBeenCalledWith(0, MAX_PAGE_SIZE);
     });
 
-    it('applique les filtres combinés (catégorie + promo)', async () => {
-      mockedFrom
-        .mockReturnValueOnce(createBuilder({ data: { id: 'cat-1' }, error: null }))
-        .mockReturnValueOnce(createBuilder({ data: [], error: null, count: 0 }));
+    it('applique les filtres combinés (catégorie résolue côté client + promo)', async () => {
+      // Aucun appel serveur slug→id : l'id vient du cache client (filtres).
+      mockedFrom.mockReturnValueOnce(createBuilder({ data: [], error: null }));
 
-      await fetchPublicProducts({ category_slug: 'soins-visage', promo: true, page: 1, pageSize: 16 });
+      await fetchPublicProducts({
+        category_slug: 'soins-visage',
+        category_id: 'cat-1',
+        promo: true,
+        page: 1,
+        pageSize: 16,
+      });
 
-      const builder = mockedFrom.mock.results[1].value as Record<string, ReturnType<typeof vi.fn>>;
+      expect(mockedFrom).toHaveBeenCalledTimes(1);
+      const builder = mockedFrom.mock.results[0].value as Record<string, ReturnType<typeof vi.fn>>;
       expect(builder.eq).toHaveBeenCalledWith('is_active', true);
       expect(builder.eq).toHaveBeenCalledWith('category_id', 'cat-1');
       expect(builder.eq).toHaveBeenCalledWith('is_promotion', true);
     });
 
-    it('retourne les produits, le total et le nombre de pages', async () => {
-      const products = [{ id: 'p1' }, { id: 'p2' }];
-      // Sans category_slug, un seul appel à from('products') est effectué.
-      mockedFrom.mockReturnValueOnce(createBuilder({ data: products, error: null, count: 32 }));
+    it("résout le slug catégorie côté serveur uniquement si l'id manque (fallback)", async () => {
+      mockedFrom
+        .mockReturnValueOnce(createBuilder({ data: { id: 'cat-1' }, error: null }))
+        .mockReturnValueOnce(createBuilder({ data: [], error: null }));
+
+      await fetchPublicProducts({ category_slug: 'soins-visage', page: 1, pageSize: 16 });
+
+      expect(mockedFrom).toHaveBeenCalledTimes(2);
+      expect(mockedFrom).toHaveBeenNthCalledWith(1, 'categories');
+      expect(mockedFrom).toHaveBeenNthCalledWith(2, 'products');
+    });
+
+    it('retourne hasNextPage=false quand l\'API renvoie exactement pageSize lignes', async () => {
+      const products = Array.from({ length: 10 }, (_, i) => ({ id: `p${i}` }));
+      mockedFrom.mockReturnValueOnce(createBuilder({ data: products, error: null }));
 
       const result = await fetchPublicProducts({ page: 2, pageSize: 10 });
 
-      expect(result.products).toEqual(products);
-      expect(result.total).toBe(32);
-      expect(result.totalPages).toBe(4);
+      expect(result.products).toHaveLength(10);
+      expect(result.hasNextPage).toBe(false);
       expect(result.page).toBe(2);
+    });
+
+    it('retourne hasNextPage=true et tronque à pageSize quand l\'API renvoie pageSize+1', async () => {
+      const products = Array.from({ length: 11 }, (_, i) => ({ id: `p${i}` }));
+      mockedFrom.mockReturnValueOnce(createBuilder({ data: products, error: null }));
+
+      const result = await fetchPublicProducts({ page: 1, pageSize: 10 });
+
+      expect(result.products).toHaveLength(10);
+      expect(result.hasNextPage).toBe(true);
+      expect(result.page).toBe(1);
+    });
+
+    it('borne la page à 1 (page négative/abusive ignorée)', async () => {
+      mockedFrom.mockReturnValueOnce(createBuilder({ data: [], error: null }));
+
+      const result = await fetchPublicProducts({ page: -5, pageSize: 10 });
+
+      const builder = mockedFrom.mock.results[0].value as Record<string, ReturnType<typeof vi.fn>>;
+      expect(builder.range).toHaveBeenCalledWith(0, 10);
+      expect(result.page).toBe(1);
     });
   });
 });

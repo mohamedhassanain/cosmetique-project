@@ -5,7 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { usePublicProducts, ProductFilters } from '@/hooks/useProducts';
-import { useCategories } from '@/hooks/useCategories';
+import { useCategories, useAllSubcategories } from '@/hooks/useCategories';
+import { slugify } from '@/lib/utils';
 import { useProductActions } from '@/hooks/useProductActions';
 import { ProductCard } from '@/components/product/ProductCard';
 import { QuickViewDialog } from '@/components/product/QuickViewDialog';
@@ -19,7 +20,10 @@ import { Search, SlidersHorizontal, X, Flower2, ChevronLeft, ChevronRight } from
 
 export default function Produits() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { categories } = useCategories();
+  const { categories, isLoading: categoriesLoading } = useCategories();
+  // Toutes les sous-catégories (cache partagé footer/menu) : permet de résoudre
+  // slug → id côté client et d'éviter 2 requêtes Supabase par page filtrée.
+  const { subcategories: allSubcategories, isLoading: subcategoriesLoading } = useAllSubcategories();
   const { getShareData } = useProductActions();
 
   const [search, setSearch] = useState('');
@@ -44,10 +48,33 @@ export default function Produits() {
     return () => clearTimeout(timer);
   }, [search]);
 
+  // Résolution slug → id côté client (cache catégories/sous-catégories déjà
+  // chargés par le menu/footer) : la requête produits n'a plus besoin des
+  // 2 appels serveur slug→id. Les slugs restent dans les filtres pour la
+  // stabilité des clés de cache ; les ids sont passés séparément.
+  const category = categories.find(c => c.slug === selectedCategory);
+  const subcategory = allSubcategories.find(
+    s => s.slug === (selectedSubcategory ? slugify(selectedSubcategory) : '')
+  );
+
+  // On temporise la requête produits tant que le cache n'a pas permis de
+  // résoudre les slugs : on évite la résolution serveur (fallback) puis une
+  // seconde requête quand le cache arrive.
+  //   * selectedCategory absent             → prêt
+  //   * catégorie trouvée dans le cache     → prêt (id fourni, pas de lookup)
+  //   * cache encore en chargement          → on attend (pas de requête dupliquée)
+  //   * cache chargé ET slug introuvable    → prêt (résultat vide attendu, ou
+  //     fallback serveur inoffensif pour un lien direct mal formé)
+  const categoryReady = !selectedCategory || !!category || !categoriesLoading;
+  const subcategoryReady = !selectedSubcategory || !!subcategory || !subcategoriesLoading;
+  const filtersReadyToFetch = categoryReady && subcategoryReady;
+
   const filters: ProductFilters = {
     search: debouncedSearch,
     category_slug: selectedCategory,
     subcategory_slug: selectedSubcategory,
+    category_id: category?.id ?? null,
+    subcategory_id: subcategory?.id ?? null,
     promo: selectedPromo,
     featured: selectedFeatured,
     sort: sortBy,
@@ -55,7 +82,7 @@ export default function Produits() {
     pageSize: 16,
   };
 
-  const { products, total, totalPages, currentPage, isLoading } = usePublicProducts(filters);
+  const { products, hasNextPage, currentPage, isLoading } = usePublicProducts(filters, filtersReadyToFetch);
 
   useEffect(() => {
     const cat = searchParams.get('categorie');
@@ -80,7 +107,6 @@ export default function Produits() {
     setSelectedPromo(false);
     setSelectedFeatured(false);
     setSearch('');
-    setSelectedCategory(null);
     setSearchParams({});
   };
 
@@ -109,7 +135,10 @@ export default function Produits() {
             <h1 className="text-3xl font-display font-bold text-pink-900">
               {selectedPromo ? 'Promotions' : selectedFeatured ? 'Recommandé' : 'Nos Produits'}
             </h1>
-            <p className="text-pink-600">{total} produit(s)</p>
+            {/* Le total exact a été remplacé par le nombre de produits affichés :
+                la pagination « page suivante » n'exige plus de COUNT(*) exact
+                coûteux (voir PERFORMANCE_AUDIT.md, phase 3). */}
+            <p className="text-pink-600">{isLoading ? 'Chargement…' : `${products.length} produit(s) affiché(s)`}</p>
           </div>
           <div className="flex items-center gap-3">
             <Select value={sortBy} onValueChange={(v: 'newest' | 'price-asc' | 'price-desc') => setSortBy(v)}>
@@ -167,8 +196,9 @@ export default function Produits() {
           ))}
         </div>
 
-        {/* Pagination */}
-        {totalPages > 1 && (
+        {/* Pagination — prev/next basée sur hasNextPage (détecté via limit+1,
+            sans COUNT(*) exact) */}
+        {(hasNextPage || currentPage > 1) && (
           <div className="flex items-center justify-center gap-4 mt-12">
             <Button
               variant="outline"
@@ -180,14 +210,14 @@ export default function Produits() {
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <span className="text-sm text-pink-600 font-medium">
-              Page {currentPage} / {totalPages}
+              Page {currentPage}
             </span>
             <Button
               variant="outline"
               size="icon"
               className="border-pink-200 text-pink-600"
-              disabled={currentPage >= totalPages}
-              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={!hasNextPage}
+              onClick={() => setPage(p => p + 1)}
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
