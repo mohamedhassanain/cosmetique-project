@@ -16,6 +16,8 @@ Date: 13/08/2026. Real figures from saved k6 result JSONs (`load-tests/results/`
 
 \* 60.00s = k6 HTTP timeout hit (request timed out). p99 at AFTER/1000: 35.69s.
 
+> **Live re-run 13/08 14:32–14:36 (this session, at user request) reproduced the saturation almost exactly**: 68 657 requests, RPS 237.2, p50 431ms, p95 8.36s, p99 35.69s, max 60.00s (`http_req_duration p(95)<2000` threshold FAILED), err 0.05% (36 timeouts). Machine monitor: k6 CPU ≤55.5%, total CPU ≤48.9%, RAM free ≥2.0 GB, TCP ~1 049 — load generator clearly NOT the cause. Source: `load-tests/results/optimized2-1000vu.json` (overwritten by rerun) + `machine-global-1000-rerun.csv`.
+
 Source files: `summary-100vu-BEFORE.json`, `summary-500vu-BEFORE.json`, `summary-1000vu-BEFORE.json`; `optimized2-500vu.json`, `optimized2-600vu.json`, `optimized2-700vu.json`, `optimized2-1000vu.json`.
 
 ## 2. Reading the 1000 VU rows honestly

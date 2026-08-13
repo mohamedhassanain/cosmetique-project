@@ -39,7 +39,7 @@ Date: 13/08/2026. All numbers REAL (saved k6 result JSONs, live Supabase REST, D
 
 ## 4. Evidence (key numbers, all REAL)
 
-- Global mixed 1000 VU (`optimized2-1000vu.json`): RPS **237.2** (throughput collapse from 460.1 @700), p50 431 ms, **p95 8.36 s**, p99 35.69 s, **max 60.00 s (k6 HTTP timeout hit)**, err 0.05%.
+- Global mixed 1000 VU (`optimized2-1000vu.json`, latest values from the **live re-run 13/08 14:32–14:36 launched in the terminal at user request**): RPS **237.2** (throughput collapse from 460.1 @700), p50 431 ms, **p95 8.36 s**, p99 35.69 s, **max 60.00 s (k6 HTTP timeout hit)**, err 0.05%, 36 timeouts. Machine monitor during the re-run: k6 CPU ≤55.5%, total CPU ≤48.9%, RAM free ≥2.0 GB — generator not saturated (`machine-global-1000-rerun.csv`).
 - TEST A static-only 1000 VU (`test-a-static-1000vu.json`): RPS 574.9, p50 1.6 ms, p95 5.5 ms, p99 24 ms, max 94 ms, 0 errors.
 - Isolated 1000 VU (real): home p95 1.30 s / catalog 986 ms / search 91 ms / detail 166 ms — intermittent by run (search-900 collapsed to 3.05 s while search-1000 stayed 91 ms in the same hour).
 - Machine monitor (this session): k6 CPU peak 78.8% (1 core), total CPU peak 78.1%, RAM free 2.7–3.4 GB, TCP ~2 040 — headroom present.
