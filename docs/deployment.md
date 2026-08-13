@@ -35,31 +35,38 @@ Une fois le domaine connecté à Cloudflare :
 1. **DNS** : ajouter l'enregistrement (A/AAAA/CNAME) pointant vers l'hébergeur (Vercel/Netlify).
    Mode proxy activé (orange) pour que Cloudflare cache.
 
-2. **Cache Rules** (Rules → Cache Rules → Create Rule) :
+2. **Cache Rules** (Rules → Cache Rules → Create Rule) — règles **sûres uniquement** :
 
 ```
-Rule name: Cache Supabase products API
+Rule name: Cache assets immutable
 When incoming requests match:
-  URI Path → starts with → /rest/v1/products
+  URI Path → starts with → /assets
 Cache eligibility: Eligible for cache
-Edge Cache TTL: Override origin → 5 minutes
+Cache TTL: 1 month
 ```
 
 ```
-Rule name: Cache static prerendered product pages
+Rule name: Respecter l'origine (SPA + admin)
 When incoming requests match:
-  URI Path → starts with → /prerendered
+  Hostname → equals → votre-domaine.fr
 Cache eligibility: Eligible for cache
-Edge Cache TTL: Override origin → 1 hour
+Cache status: Use cache-control header if present, bypass cache if absent
 ```
 
-3. **Vérification** (deux requêtes consécutives doivent montrer un cache hit) :
+> ⚠️ **NE PAS** créer de règle de cache sur `/rest/v1/*` (API Supabase) ni sur
+> `/auth/v1/*`. Les réponses PostgREST dépendent du JWT de l'utilisateur (RLS) :
+> un admin connecté reçoit des lignes protégées avec la même URL qu'un visiteur.
+> Mettre cette route en cache = risque de fuite de données privées. Même sans
+> authentification, produits/promos/prix n'ont aucun canal d'invalidation sûr.
+> Voir `CLOUDFLARE_CACHE_RULES.md` pour le détail.
+
+3. **Vérification** (assets statiques uniquement) :
 
 ```bash
-curl -sI "https://votre-domaine.fr/produits" -H "User-Agent: Mozilla/5.0"
-# 1re requête : cf-cache-status: MISS / DYNAMIC
-curl -sI "https://votre-domaine.fr/produits" -H "User-Agent: Mozilla/5.0"
-# 2e requête : cf-cache-status: HIT  ← à vérifier avant mise en prod
+H=$(curl -s "https://votre-domaine.fr/" | grep -o '/assets/index-[^"]*\.js' | head -1)
+curl -sI "https://votre-domaine.fr$H" -H "User-Agent: Mozilla/5.0"
+# 2e requête : cf-cache-status: HIT  ← asset
+# index.html / /admin : doivent retourner no-store (jamais HIT)
 ```
 
 > Si le domaine n'est pas derrière Cloudflare, au minimum activer le cache de l'hébergeur
