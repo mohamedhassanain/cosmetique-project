@@ -1,5 +1,12 @@
 # Load Tests — Kissariya Cosmétiques (Supabase reads)
 
+> **Current round (13/08/2026) — capacity sweep.** Use
+> `run-capacity-sweep.ps1` for the full isolated-endpoint + global-mixed
+> workload sweep (100→1000 VU isolated per endpoint, then 500→1000 global,
+> continuing to 1500+ only if 1000 is stable), with per-run machine
+> monitoring. Results are assembled into `ISOLATED_LOAD_TEST_REPORT.md` by
+> `node load-tests/build-k6-report.mjs`. See below for details.
+
 This directory contains a **read-only** load test that hits the **REAL Supabase
 project** used by the application (`VITE_SUPABASE_URL` from
 `.env.example` / `src/integrations/supabase/client.ts`).
@@ -117,6 +124,35 @@ Full metrics collected per run: `http_req_duration` (avg/p50/p90/p95/p99),
   measurements.
 - If the load-generator machine caps out (CPU 100 %, no more sockets), that is
   a **client bottleneck**, not a Supabase one. Check it separately.
+
+## Capacity sweep tooling (this round)
+
+```powershell
+# Sanity check (1 VU, real Supabase, anon key)
+powershell -NoProfile -ExecutionPolicy Bypass -File load-tests/run-capacity-sweep.ps1 -Probe
+
+# Full sweep: isolated HOME/CATALOG/SEARCH/DETAIL at
+# 100/500/600/700/800/900/1000 VU, then global mixed workload 500→1000
+# (1500/2000/2500/3000 only if 1000 is stable). Read-only, anon key only,
+# machine monitored every run.
+powershell -NoProfile -ExecutionPolicy Bypass -File load-tests/run-capacity-sweep.ps1
+
+# Build ISOLATED_LOAD_TEST_REPORT.md from the k6 JSON exports
+node load-tests/build-k6-report.mjs
+```
+
+Outputs:
+- `load-tests/results/k6-<endpoint>-<vu>vu.json` (isolated) and
+  `optimized2-<vu>vu.json` (global) — raw k6 exports
+- `load-tests/results/machine-*.csv` — load-generator CPU/RAM/sockets samples
+- `load-tests/results/sweep-progress.log` — run-by-run log
+- `ISOLATED_LOAD_TEST_REPORT.md` — assembled tables (`build-k6-report.mjs`)
+
+Notes:
+- The script must run from the repository ROOT (it uses space-free relative
+  paths; the repo path on this machine contains spaces, which breaks
+  `Start-Process` argument passing).
+- k6 receives its `-e` vars as process environment variables, not argv.
 
 ## Reports
 
