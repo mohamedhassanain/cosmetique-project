@@ -18,16 +18,36 @@ Users → Docker/Nginx (committed image: SPA fallback, immutable assets, no-stor
 ## # 2. Cloudflare Architecture (PREPARED — provides the safe cache layer)
 
 ```
-Users → Cloudflare zone (custom domain)
-         ├── Rule 1: /assets/*          → cache 1 month (immutable, origin header)
-         ├── Rule 2: everything else    → respect origin (no-store for index/admin)
-         └── NEVER cached: /rest/v1/*, /auth/v1/*, /admin*, Authorization requests
-       → Docker/Nginx (origin, unchanged image)
-       → Browser → Supabase directly (unchanged — Auth/RLS/Storage untouched)
+Users
+  │
+  ▼
+Cloudflare
+  │
+  ┌───────────┴───────────┐
+  ▼                       ▼
+Static Assets          Frontend
+JS/CSS/Fonts              Docker
+  │                       │
+  └───────────┬───────────┘
+              ▼
+          Supabase
+     ┌────────┼────────┐
+     ▼        ▼        ▼
+    Auth     DB      Storage
 ```
 
-Product images are already Cloudflare-cached at Supabase's own edge
-(`cf-cache-status: HIT`, measured) and never touch our origin.
+- **Static Assets (JS/CSS/Fonts)**: served from the same Docker/Nginx origin,
+  cached at the Cloudflare edge (Rule 1 — `/assets/*`, 1 month, immutable).
+- **Frontend (Docker)**: the SPA shell + HTML routes, respect-origin caching
+  (Rule 2) — index/admin stay `no-store`, nothing user-specific is cached.
+- **Supabase (Auth / DB / Storage)**: unchanged backend. The browser talks to
+  `*.supabase.co` directly — never through our zone. Auth, RLS-filtered DB
+  responses and Storage are never cached by our rules.
+- Product images: already Cloudflare-cached at Supabase's own edge
+  (`cf-cache-status: HIT`, measured) and never touch our origin.
+
+Supported by Nginx origin headers (verified): `immutable` on `/assets/*`,
+`no-store` on `index.html` + SPA/admin routes.
 
 ## # 3. Static Asset Strategy (READY)
 

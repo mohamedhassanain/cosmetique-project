@@ -7,20 +7,38 @@ domain to Cloudflare in front of the Docker/Nginx origin.
 in this environment). Production behavior behind Cloudflare is NOT VERIFIED
 until the steps below are executed and the verification commands pass.**
 
-## 0. Reference architecture
+## 0. Reference architecture (target)
 
 ```
 Users
-  ↓  (TLS, CDN)
-Cloudflare zone (custom domain)
-  ├── DNS proxy "orange": yourdomain.com → origin (Docker/Nginx :80/:443)
-  ├── Cache Rules (CLOUDFLARE_CACHE_RULES.md):
-  │     • /assets/* → cache 1 month (immutable)
-  │     • everything else → respect origin (index/admin no-store)
-  └── NEVER cached: /rest/v1/*, /auth/v1/*, /admin*, Authorization requests
-Origin (Docker/Nginx, committed image) → serves SPA + hashed assets
-Browser → Supabase directly (Auth/PostgREST/Storage — untouched)
+  │
+  ▼
+Cloudflare
+  │
+  ┌───────────┴───────────┐
+  ▼                       ▼
+Static Assets          Frontend
+JS/CSS/Fonts              Docker
+  │                       │
+  └───────────┬───────────┘
+              ▼
+          Supabase
+     ┌────────┼────────┐
+     ▼        ▼        ▼
+    Auth     DB      Storage
 ```
+
+Concrete mapping:
+
+- Cloudflare zone (custom domain) → TLS + CDN edge.
+  - **Static Assets (JS/CSS/Fonts)**: `/assets/*` cached 1 month (immutable,
+    Rule 1 in CLOUDFLARE_CACHE_RULES.md).
+  - **Frontend (Docker)**: SPA shell + HTML routes via the same origin,
+    respect-origin caching (Rule 2) — `index.html` and `/admin*` stay `no-store`.
+- **Supabase (Auth / DB / Storage)**: unchanged backend, browser → `*.supabase.co`
+  directly. Never proxied, never cached by our rules.
+- DNS proxy "orange": `yourdomain.com` → origin (Docker/Nginx :80/:443).
+- NEVER cached: `/rest/v1/*`, `/auth/v1/*`, `/admin*`, Authorization requests.
 
 ## 1. Prerequisites on the origin
 
