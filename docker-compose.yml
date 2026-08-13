@@ -1,0 +1,30 @@
+# =====================================================================
+# KISSARIYA COSMÉTIQUES — docker compose (production, frontend only)
+# ---------------------------------------------------------------------
+# Single service: the Nginx web container. NO database, NO redis,
+# NO backend, NO api. Supabase remains the only backend.
+#
+# The root .env is read automatically by Compose for variable
+# substitution. Only VITE_* (browser-public) values are passed as
+# BUILD ARGS — they are baked into the bundle at build time exactly
+# like the current Netlify/Vercel builds. Nothing is passed to the
+# runtime container and .env is never copied into the image.
+#
+# Usage (from repo root):
+#   docker compose up -d --build
+#   → http://localhost:8080
+# =====================================================================
+services:
+  web:
+    build:
+      context: .
+      args:
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
+        VITE_SUPABASE_PUBLISHABLE_KEY: ${VITE_SUPABASE_PUBLISHABLE_KEY}
+        VITE_SUPABASE_PROJECT_ID: ${VITE_SUPABASE_PROJECT_ID:-}
+        VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
+        VITE_SENTRY_ENVIRONMENT: ${VITE_SENTRY_ENVIRONMENT:-}
+        RUN_PRERENDER: ${RUN_PRERENDER:-false}
+    ports:
+      - "8080:80"
+    restart: unless-stopped

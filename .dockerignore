@@ -1,0 +1,42 @@
+# --- Dependencies / build output (rebuilt in the container) ---
+node_modules
+dist
+coverage
+
+# --- Local environment & secrets (NEVER copied into the image) ---
+.env
+.env.*
+*.local
+
+# --- Version control ---
+.git
+.gitignore
+
+# --- Logs / temporary / editor ---
+**/*.log
+logs
+tmp
+.vscode
+.idea
+.DS_Store
+*.swp
+
+# --- Test artifacts (not needed for the production build) ---
+test-results
+playwright-report
+playwright/.cache
+playwright/.auth
+blob-report
+e2e
+tests
+
+# --- Load tests / postman (may contain environment files; not needed) ---
+load-tests
+postman
+
+# --- Supabase local tooling ---
+supabase/.temp
+
+# --- Misc build-local files ---
+bun.lockb
+stats.html
