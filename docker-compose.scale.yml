@@ -1,0 +1,98 @@
+# =====================================================================
+# KISSARIYA COSMÉTIQUES — docker compose SCALE (multi-replica, PROD)
+# ---------------------------------------------------------------------
+# Same immutable stateless image served by N identical containers.
+# Three replicas (web1, web2, web3) reuse the same `kissariya-web:latest`
+# image (build args identical to docker-compose.yml). No host volumes,
+# no server state — each replica is interchangeable.
+#
+# Health: each replica exposes static `/health` (200, no Supabase
+# dependency — Nginx itself is the thing being checked).
+#
+# Ports 8081/8082/8083 are exposed for LOCAL benchmarking / verification.
+# In front of a real load balancer, remove the `ports` mapping and let
+# the LB reach the containers via the webnet network.
+#
+# Usage:
+#   docker compose -f docker-compose.scale.yml build
+#   docker compose -f docker-compose.scale.yml up -d
+#   curl http://localhost:8081/health  (and 8082, 8083)
+# =====================================================================
+
+x-web-args: &web-args
+  context: .
+  args:
+    VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
+    VITE_SUPABASE_PUBLISHABLE_KEY: ${VITE_SUPABASE_PUBLISHABLE_KEY}
+    VITE_SUPABASE_PROJECT_ID: ${VITE_SUPABASE_PROJECT_ID:-}
+    VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
+    VITE_SENTRY_ENVIRONMENT: ${VITE_SENTRY_ENVIRONMENT:-}
+    RUN_PRERENDER: ${RUN_PRERENDER:-false}
+
+services:
+  web1:
+    image: kissariya-web:latest
+    build: *web-args
+    container_name: kissariya-web1
+    ports:
+      - "8081:80"
+    restart: unless-stopped
+    networks:
+      - webnet
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/health", "|", "grep", "-q", "ok"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  web2:
+    image: kissariya-web:latest
+    build: *web-args
+    container_name: kissariya-web2
+    ports:
+      - "8082:80"
+    restart: unless-stopped
+    networks:
+      - webnet
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/health", "|", "grep", "-q", "ok"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  web3:
+    image: kissariya-web:latest
+    build: *web-args
+    container_name: kissariya-web3
+    ports:
+      - "8083:80"
+    restart: unless-stopped
+    networks:
+      - webnet
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/health", "|", "grep", "-q", "ok"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+networks:
+  webnet:
+    driver: bridge
