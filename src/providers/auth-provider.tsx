@@ -11,21 +11,38 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
   const [loading, setLoading] = useState(true);
 
   const refreshAdminStatus = useCallback(async (userId: string | null) => {
+    // Re-enter the loading state: after a fresh login the provider is
+    // already mounted with loading=false (initial null session), and
+    // RequireAdmin would otherwise render "Accès réservé" with
+    // isAdmin=false before the RPC below resolves.
+    setLoading(true);
     try {
       if (!userId) {
         setIsAdmin(false);
         return;
       }
-      // Verify against the server-side allowlist (admin_users) so the UI
-      // reflects the real DB authorization. This is a UX guard only — the
-      // actual enforcement is RLS via public.is_admin().
-      const { data } = await supabase.rpc('is_admin');
-      setIsAdmin(data === true);
-    } catch {
-      setIsAdmin(false);
+      let allowed = false;
+      try {
+        const { data } = await supabase.rpc('is_admin');
+        allowed = data === true;
+      } catch {
+        allowed = false;
+      }
+      // Retry once shortly after a false result: the very first RPC right
+      // after SIGNED_IN can race the access token being attached to the
+      // REST client and yield a false negative. A second attempt ~300 ms
+      // later removes that race without delaying the UI.
+      if (!allowed) {
+        await new Promise<void>((resolve) => setTimeout(resolve, 300));
+        try {
+          const { data } = await supabase.rpc('is_admin');
+          allowed = data === true;
+        } catch {
+          allowed = false;
+        }
+      }
+      setIsAdmin(allowed);
     } finally {
-      // Loading covers the whole auth + admin-check resolution so a
-      // legitimate admin never briefly sees isAdmin=false and a redirect.
       setLoading(false);
     }
   }, []);
