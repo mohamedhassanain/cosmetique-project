@@ -248,42 +248,65 @@ REVOKE ALL ON FUNCTION public.cleanup_rate_limit_counters(TIMESTAMPTZ) FROM auth
 GRANT EXECUTE ON FUNCTION public.cleanup_rate_limit_counters(TIMESTAMPTZ) TO service_role;
 
 -- ═══════════════════════════════════════════════════════════════
--- ADMIN AUTHORIZATION — MODÈLE ACTUEL
+-- ADMIN ALLOWLIST — is_admin() explicite
 --
--- Architecture volontairement simple : ce projet Supabase Auth est
--- réservé EXCLUSIVEMENT aux comptes administrateurs. Aucun système
--- de rôles, aucune table admin, aucune metadata de rôle.
---
---   Utilisateur authentifié (auth.uid() IS NOT NULL)  → ADMIN
---   Visiteur non connecté                            → PAS ADMIN
---
--- Les comptes sont créés UNIQUEMENT et manuellement par l'administrateur
--- de confiance via : Supabase Dashboard → Authentication → Users →
--- Create user. L'inscription publique n'est PAS exposée par l'application
--- (aucune page /signup, aucun appel signUp()).
---
---   * `is_admin()` = `auth.uid() IS NOT NULL`. C'est SÛR sous cette
---     architecture : aucun visiteur ne peut créer de compte lui-même,
---     donc « authentifié » implique « compte admin créé manuellement ».
---   * La sécurité applicative : les policies RLS ci-dessous utilisent
---     `public.is_admin()` → les visiteurs anonymes ne peuvent JAMAIS
---     lire/écrire/supprimer les données sensibles (products, orders,
---     contact_messages, etc.). Seuls les INSERT publics intentionnels
---     (commandes WhatsApp, messages de contact) restent ouverts.
---   * Aucune donnée utilisateur-éditable (raw_user_meta_data, profil)
---     n'est utilisée pour l'autorisation.
---
--- Ne PAS réintroduire de table admin_users ni de colonne role.
---
--- ═══════════════════════════════════════════════════════════════
+-- `is_admin()` = auth.uid() ∈ admin_users. Plus JAMAIS
+-- « auth.uid() IS NOT NULL » (trop large : tout compte de la base
+-- Auth devenait admin). RLS activée + aucune policy → anon et
+-- authenticated ne peuvent ni lire ni écrire la table. Seul
+-- service_role (SQL Editor / Edge Functions) la gère.
+CREATE TABLE IF NOT EXISTS public.admin_users (
+  user_id    UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 
+ALTER TABLE public.admin_users ENABLE ROW LEVEL SECURITY;
+
+REVOKE ALL ON TABLE public.admin_users FROM anon;
+REVOKE ALL ON TABLE public.admin_users FROM authenticated;
+
+-- Seed NON blindé : au premier déploiement uniquement (table vide),
+-- tous les comptes Auth existants deviennent admins → aucun
+-- verrouillage accidentel des comptes en place.
+INSERT INTO public.admin_users (user_id)
+SELECT id FROM auth.users
+WHERE NOT EXISTS (SELECT 1 FROM public.admin_users);
+
+-- ═══════════════════════════════════════════════════════════════
+-- ADMIN AUTHORIZATION — MODÈLE ACTUEL (allowlist explicite)
+--
+-- Ce projet Supabase Auth reste réservé EXCLUSIVEMENT aux comptes
+-- administrateurs. Aucune inscription publique (aucune page /signup,
+-- aucun appel signUp()). Les comptes sont créés manuellement par le
+-- propriétaire : Dashboard → Authentication → Users → Create user.
+--
+--   Utilisateur authentifié ET présent dans admin_users → ADMIN
+--   Tout autre cas (anonyme, ou authentifié non allowlisté)  → PAS ADMIN
+--
+-- `is_admin()` = auth.uid() ∈ admin_users (SECURITY DEFINER, lue par
+-- les policies RLS et par le guard frontend RequireAdmin). La table
+-- admin_users est protégée : RLS activée, aucune policy, accès anon/
+-- authenticated révoqués → seuls le SQL Editor (service_role) et les
+-- Edge Functions peuvent gérer l'allowlist.
+--
+-- Protection en profondeur : même si un compte non-admin était créé
+-- dans la base Auth, il ne pourrait RIEN lire/écrire de sensible.
+--
+
+-- Allowlist explicite : auth.uid() doit exister dans public.admin_users.
+-- SECURITY DEFINER pour lire admin_users malgre son RLS; auth.uid()
+-- reste derive du JWT appelant.
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS BOOLEAN
 LANGUAGE sql
 STABLE
+SECURITY DEFINER
 SET search_path = public
 AS $$
-  SELECT auth.uid() IS NOT NULL;
+  SELECT EXISTS (
+    SELECT 1 FROM public.admin_users
+    WHERE user_id = auth.uid()
+  );
 $$;
 
 -- Exécutable par le client (RPC) pour le guard frontend RequireAdmin,

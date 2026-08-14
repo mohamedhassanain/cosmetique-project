@@ -11,7 +11,23 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
   const [loading, setLoading] = useState(true);
 
   const refreshAdminStatus = useCallback(async (userId: string | null) => {
-    setIsAdmin(!!userId);
+    try {
+      if (!userId) {
+        setIsAdmin(false);
+        return;
+      }
+      // Verify against the server-side allowlist (admin_users) so the UI
+      // reflects the real DB authorization. This is a UX guard only — the
+      // actual enforcement is RLS via public.is_admin().
+      const { data } = await supabase.rpc('is_admin');
+      setIsAdmin(data === true);
+    } catch {
+      setIsAdmin(false);
+    } finally {
+      // Loading covers the whole auth + admin-check resolution so a
+      // legitimate admin never briefly sees isAdmin=false and a redirect.
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -21,7 +37,6 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
         const nextUser = session?.user ?? null;
         setUser(nextUser);
         void refreshAdminStatus(nextUser?.id ?? null);
-        setLoading(false);
       }
     );
 
@@ -30,7 +45,6 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
       const nextUser = session?.user ?? null;
       setUser(nextUser);
       void refreshAdminStatus(nextUser?.id ?? null);
-      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
