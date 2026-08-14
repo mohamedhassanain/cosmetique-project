@@ -189,7 +189,9 @@ export default function (data) {
   }
 
   // H - realistic mixed browsing
-  var settings = get(REST + "/site_settings?select=*&limit=1", "H_settings");
+  // Aligne la requete site_settings sur celle de l'application
+  // (site-settings.service.ts) : select strict de 6 colonnes, jamais select=*.
+  var settings = get(REST + "/site_settings?select=" + SITE_SETTINGS_SELECT + "&limit=1", "H_settings");
   check(settings, { "H settings 200": function (x) { return x.status === 200; } });
 
   var categories = get(REST + "/categories?select=" + CATEGORIES_SELECT + "&order=sort_order.asc", "H_categories");
