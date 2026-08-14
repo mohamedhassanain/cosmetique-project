@@ -25,6 +25,7 @@ const AdminSettings = lazy(() => import("./pages/admin/AdminSettings"));
 const AdminPromos = lazy(() => import("./pages/admin/AdminPromos"));
 const Produits = lazy(() => import("./pages/shop/Produits"));
 const ProduitDetail = lazy(() => import("./pages/shop/ProduitDetail"));
+const Contact = lazy(() => import("./pages/shop/Contact"));
 const NotFound = lazy(() => import("./pages/errors/NotFound"));
 const AccesRefuse = lazy(() => import("./pages/errors/AccesRefuse"));
 
@@ -55,6 +56,7 @@ const App = () => (
                   <Route path="/" element={<Index />} />
                   <Route path="/produits" element={<Produits />} />
                   <Route path="/produit/:slug" element={<ProduitDetail />} />
+                  <Route path="/contact" element={<Contact />} />
 
                   {/* Authentification (admin) — connexion email + mot de passe */}
                   <Route path="/admin/login" element={<Auth />} />

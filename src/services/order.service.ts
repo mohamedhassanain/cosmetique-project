@@ -4,6 +4,80 @@
 import { supabase } from '@/integrations/supabase/client';
 import { Order } from '@/types/product';
 
+/**
+ * Fonctions publiques protégées (rate limiting + validation serveur).
+ * Les visiteurs ne passent PLUS par un INSERT PostgREST direct : la policy
+ * anon INSERT de `orders` est supprimée. Seul l'admin (JWT authentifié)
+ * insère directement via `createOrder`.
+ */
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+export interface PublicOrderInput {
+  product_id?: string | null;
+  product_name: string;
+  quantity: number;
+  total_price: number;
+  customer_name: string;
+  customer_phone?: string;
+  customer_city?: string | null;
+  status?: string;
+  notes?: string | null;
+  /** Champ honeypot anti-bot : le navigateur l'envoie vide. */
+  website?: string;
+}
+
+export class PublicSubmissionError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number
+  ) {
+    super(message);
+    this.name = 'PublicSubmissionError';
+  }
+}
+
+async function callFunction<T = unknown>(
+  functionName: string,
+  payload: unknown
+): Promise<T> {
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/${functionName}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      Accept: 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (res.status === 201 || res.status === 200) {
+    return (await res.json().catch(() => ({}))) as T;
+  }
+
+  let message = 'Une erreur est survenue. Veuillez réessayer.';
+  try {
+    const data = (await res.json()) as { error?: string };
+    if (typeof data.error === 'string' && data.error.trim()) {
+      message = data.error;
+    }
+  } catch {
+    // réponse non-JSON : message par défaut
+  }
+
+  throw new PublicSubmissionError(message, res.status);
+}
+
+/**
+ * Création de COMMANDE PUBLIQUE via l'Edge Function sécurisée
+ * (`create-order`) : validation serveur + rate limiting par IP,
+ * réponse 429 quand la limite est atteinte.
+ */
+export async function submitPublicOrder(input: PublicOrderInput): Promise<{ ok: boolean }> {
+  return callFunction<{ ok: boolean }>('create-order', input);
+}
+
 export interface OrderFilters {
   page?: number;
   pageSize?: number;

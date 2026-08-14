@@ -4,7 +4,7 @@
  */
 import { formatWhatsAppNumber } from '@/lib/utils';
 import { Product } from '@/types/product';
-import { createOrder } from '@/services/order.service';
+import { submitPublicOrder } from '@/services/order.service';
 import { fetchWhatsAppNumber } from '@/services/site-settings.service';
 
 const FALLBACK_WHATSAPP_NUMBER = '+212600000000';
@@ -57,7 +57,9 @@ export async function openWhatsAppOrder(product: Product): Promise<void> {
     }
 
     try {
-      await createOrder({
+      // Tracking PUBLIC via l'Edge Function `create-order` (rate limitée).
+      // Le prix est calculé côté serveur à partir du catalogue.
+      await submitPublicOrder({
         product_id: product.id,
         product_name: product.name,
         customer_name: 'WhatsApp Click',

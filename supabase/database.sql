@@ -177,6 +177,76 @@ CREATE TABLE IF NOT EXISTS public.promos (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- =====================================================
+-- RATE LIMITING SERVEUR (écritures publiques protégées)
+-- SCRIPT UNIQUE : ce fichier est l'UNIQUE code SQL du projet
+-- (pas de dossier migrations séparé).
+-- =====================================================
+-- État PERSISTANT partagé entre les instances des Edge Functions
+-- `create-order` / `create-contact`. Jamais de Map en mémoire côté
+-- runtime serveur (instances éphémères / scale horizontal).
+-- Un compteur par (bucket_key, fenêtre fixe) — upsert atomique via
+-- `bump_rate_limit()`, exécutable UNIQUEMENT par service_role.
+CREATE TABLE IF NOT EXISTS public.rate_limit_counters (
+  bucket_key   TEXT        NOT NULL,
+  window_start TIMESTAMPTZ NOT NULL,
+  count        INTEGER     NOT NULL DEFAULT 1,
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT rate_limit_counters_pkey PRIMARY KEY (bucket_key, window_start)
+);
+
+CREATE INDEX IF NOT EXISTS idx_rate_limit_counters_updated_at
+  ON public.rate_limit_counters (updated_at);
+
+ALTER TABLE public.rate_limit_counters ENABLE ROW LEVEL SECURITY;
+
+CREATE OR REPLACE FUNCTION public.bump_rate_limit(
+  p_bucket_key   TEXT,
+  p_window_start TIMESTAMPTZ,
+  p_max_count    INTEGER
+)
+RETURNS INTEGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_count INTEGER;
+BEGIN
+  INSERT INTO public.rate_limit_counters (bucket_key, window_start, count, updated_at)
+  VALUES (p_bucket_key, p_window_start, 1, now())
+  ON CONFLICT (bucket_key, window_start)
+  DO UPDATE SET
+    count      = public.rate_limit_counters.count + 1,
+    updated_at = now()
+  RETURNING count INTO v_count;
+
+  IF v_count > p_max_count THEN
+    DELETE FROM public.rate_limit_counters
+    WHERE bucket_key = p_bucket_key
+      AND updated_at < now() - interval '2 hours';
+  END IF;
+
+  RETURN v_count;
+END $$;
+
+REVOKE ALL ON FUNCTION public.bump_rate_limit(TEXT, TIMESTAMPTZ, INTEGER) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.bump_rate_limit(TEXT, TIMESTAMPTZ, INTEGER) FROM anon;
+REVOKE ALL ON FUNCTION public.bump_rate_limit(TEXT, TIMESTAMPTZ, INTEGER) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.bump_rate_limit(TEXT, TIMESTAMPTZ, INTEGER) TO service_role;
+
+-- Nettoyage global des compteurs expirés (appelé de façon probabiliste
+-- par l'Edge Function). Exécutable uniquement par service_role.
+CREATE OR REPLACE FUNCTION public.cleanup_rate_limit_counters(p_cutoff TIMESTAMPTZ)
+RETURNS VOID
+LANGUAGE sql
+AS $$
+  DELETE FROM public.rate_limit_counters WHERE updated_at < p_cutoff;
+$$;
+
+REVOKE ALL ON FUNCTION public.cleanup_rate_limit_counters(TIMESTAMPTZ) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.cleanup_rate_limit_counters(TIMESTAMPTZ) FROM anon;
+REVOKE ALL ON FUNCTION public.cleanup_rate_limit_counters(TIMESTAMPTZ) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.cleanup_rate_limit_counters(TIMESTAMPTZ) TO service_role;
+
 -- ═══════════════════════════════════════════════════════════════
 -- ADMIN AUTHORIZATION — MODÈLE ACTUEL
 --
@@ -467,14 +537,17 @@ DROP POLICY IF EXISTS "product_images_admin_manage" ON public.product_images;
 CREATE POLICY "product_images_admin_manage" ON public.product_images FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
 
 -- orders
--- ⚠️ INSERT est OUVERT au public : les commandes WhatsApp sont créées par des
---    visiteurs non connectés (services/whatsapp.service.ts → createOrder()).
+-- ⚠️ INSERT public direct SUPPRIMÉ : les commandes des visiteurs (WhatsApp /
+--    panier) passent désormais par l'Edge Function `create-order`
+--    (service_role, rate-limitée, validée — voir section « RATE LIMITING SERVEUR »
+--    ci-dessus, script UNIXE du schéma).
+--    Seul l'admin connecté (JWT authentifié) peut insérer directement.
 --    SELECT / UPDATE / DELETE restent réservés aux utilisateurs authentifiés.
--- Migration : l'ancienne policy globale FOR ALL est retirée si elle existe.
 DROP POLICY IF EXISTS "orders_admin_manage" ON public.orders;
 
 DROP POLICY IF EXISTS "orders_insert_public" ON public.orders;
-CREATE POLICY "orders_insert_public" ON public.orders FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "orders_admin_insert" ON public.orders;
+CREATE POLICY "orders_admin_insert" ON public.orders FOR INSERT WITH CHECK (public.is_admin());
 
 DROP POLICY IF EXISTS "orders_admin_select" ON public.orders;
 CREATE POLICY "orders_admin_select" ON public.orders FOR SELECT USING (public.is_admin());
@@ -486,8 +559,9 @@ DROP POLICY IF EXISTS "orders_admin_delete" ON public.orders;
 CREATE POLICY "orders_admin_delete" ON public.orders FOR DELETE USING (public.is_admin());
 
 -- contact_messages
+-- ⚠️ PLUS AUCUNE policy d'INSERT publique : l'unique chemin d'écriture est
+--    l'Edge Function `create-contact` (service_role, rate-limitée, validée).
 DROP POLICY IF EXISTS "contact_messages_insert_public" ON public.contact_messages;
-CREATE POLICY "contact_messages_insert_public" ON public.contact_messages FOR INSERT WITH CHECK (true);
 
 DROP POLICY IF EXISTS "contact_messages_admin_select" ON public.contact_messages;
 CREATE POLICY "contact_messages_admin_select" ON public.contact_messages FOR SELECT USING (public.is_admin());

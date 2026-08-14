@@ -7,14 +7,14 @@ vi.mock('@/services/site-settings.service', () => ({
 }));
 
 vi.mock('@/services/order.service', () => ({
-  createOrder: vi.fn(),
+  submitPublicOrder: vi.fn(),
 }));
 
 import { fetchWhatsAppNumber } from '@/services/site-settings.service';
-import { createOrder } from '@/services/order.service';
+import { submitPublicOrder } from '@/services/order.service';
 
 const mockedFetchWhatsApp = vi.mocked(fetchWhatsAppNumber);
-const mockedCreateOrder = vi.mocked(createOrder);
+const mockedSubmitPublicOrder = vi.mocked(submitPublicOrder);
 
 function makeProduct() {
   return {
@@ -38,36 +38,36 @@ afterEach(() => {
 
 describe('whatsapp.service', () => {
   describe('openWhatsAppOrder', () => {
-    it('ouvre WhatsApp quand createOrder échoue (ne bloque pas)', async () => {
+    it('ouvre WhatsApp quand submitPublicOrder échoue (ne bloque pas)', async () => {
       mockedFetchWhatsApp.mockResolvedValue('+212600000000');
-      mockedCreateOrder.mockRejectedValue(new Error('RLS: insert failed'));
+      mockedSubmitPublicOrder.mockRejectedValue(new Error('429: too many requests'));
 
       await expect(openWhatsAppOrder(makeProduct())).resolves.toBeUndefined();
 
-      // L'échec de createOrder NE doit PAS empêcher l'ouverture de WhatsApp
+      // L'échec du tracking NE doit PAS empêcher l'ouverture de WhatsApp
       expect(globalThis.open).toHaveBeenCalledWith(
         expect.stringContaining('https://wa.me/212600000000'),
         '_blank'
       );
     });
 
-    it('ouvre WhatsApp quand createOrder réussit', async () => {
+    it('ouvre WhatsApp quand submitPublicOrder réussit', async () => {
       mockedFetchWhatsApp.mockResolvedValue('+212600000000');
-      mockedCreateOrder.mockResolvedValue(undefined);
+      mockedSubmitPublicOrder.mockResolvedValue({ ok: true });
 
       await openWhatsAppOrder(makeProduct());
 
       expect(globalThis.open).toHaveBeenCalledTimes(1);
-      expect(mockedCreateOrder).toHaveBeenCalledTimes(1);
+      expect(mockedSubmitPublicOrder).toHaveBeenCalledTimes(1);
     });
 
-    it('appelle createOrder avec les infos du produit (commande WhatsApp Click)', async () => {
+    it('appelle submitPublicOrder avec les infos du produit (commande WhatsApp Click)', async () => {
       mockedFetchWhatsApp.mockResolvedValue('+212600000000');
-      mockedCreateOrder.mockResolvedValue(undefined);
+      mockedSubmitPublicOrder.mockResolvedValue({ ok: true });
 
       await openWhatsAppOrder(makeProduct());
 
-      expect(mockedCreateOrder).toHaveBeenCalledWith(
+      expect(mockedSubmitPublicOrder).toHaveBeenCalledWith(
         expect.objectContaining({
           product_id: 'p1',
           product_name: 'Crème Visage',

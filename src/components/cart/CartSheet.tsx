@@ -7,13 +7,14 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { formatWhatsAppNumber } from '@/lib/utils';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
-import { createOrder } from '@/services/order.service';
+import { submitPublicOrder } from '@/services/order.service';
 
 export function CartSheet() {
   const { items, totalItems, totalPrice, updateQuantity, removeFromCart, clearCart } = useCart();
   const { settings } = useSiteSettings();
-  // Verrou anti-double-clic : le clic sur "Commander" passe par un INSERT
-  // `orders` public — on évite tout doublon en cas de clics multiples rapides.
+  // Verrou anti-double-clic : le clic sur "Commander" passe par l'Edge
+  // Function `create-order` (rate limitée) — on évite les doublons et les
+  // compteurs inutiles en cas de clics multiples rapides.
   const orderLockRef = useRef(false);
 
   const handleWhatsAppOrder = async () => {
@@ -22,10 +23,11 @@ export function CartSheet() {
     const whatsappNumber = settings?.whatsapp_number || '+212600000000';
 
     try {
-      // Sauvegarde de la commande pour l'admin (INSERT `orders` public).
-      // Échec non bloquant : l'utilisateur part quand même sur WhatsApp.
+      // Sauvegarde de la commande pour l'admin via l'Edge Function sécurisée
+      // (`create-order` — rate limitée). Échec non bloquant : l'utilisateur
+      // part quand même sur WhatsApp.
       try {
-        await createOrder({
+        await submitPublicOrder({
           product_name: items.map(i => `${i.name} (x${i.quantity})`).join(', '),
           customer_name: 'En attente',
           customer_phone: '',

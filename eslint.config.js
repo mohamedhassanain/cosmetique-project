@@ -6,7 +6,9 @@ import jsxA11y from "eslint-plugin-jsx-a11y";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist"] },
+  // supabase/functions sont des Edge Functions Deno (runtime Supabase),
+  // PAS du code navigateur : elles sont exclues du lint frontend.
+  { ignores: ["dist", "supabase/functions"] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended, jsxA11y.flatConfigs.recommended],
     files: ["**/*.{ts,tsx}"],
