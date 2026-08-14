@@ -49,7 +49,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const config = getRateLimitConfig();
   let rateCheck;
   try {
-    rateCheck = await checkAndBump(`contact:${bucketKey}`, config.contact.rules, Date.now());
+    rateCheck = await checkAndBump(
+      `contact:${bucketKey}`,
+      config.contact.rules,
+      Date.now(),
+      config.minSubmissionIntervalMs
+    );
   } catch {
     return jsonResponse(503, { error: 'Service temporairement indisponible.' });
   }

@@ -39,9 +39,25 @@ export function windowStartMs(nowMs: number, windowSeconds: number): Date {
 export async function checkAndBump(
   bucketKey: string,
   rules: RateLimitRule[],
-  nowMs: number
+  nowMs: number,
+  minIntervalMs?: number
 ): Promise<RateLimitCheck> {
   const admin = await createAdminClient();
+
+  // anti-spam rapide : si une soumission a eu lieu il y a moins de
+  // `minIntervalMs`, on rejette SANS incrémenter les compteurs de fenêtre
+  // (évite de consommer le quota 10 min pour des clics-doubles).
+  if (minIntervalMs && minIntervalMs > 0) {
+    const intervalKey = `${bucketKey}:last`;
+    const lastSentAt = await getLastSubmission(admin, intervalKey);
+    if (lastSentAt !== null && nowMs - lastSentAt < minIntervalMs) {
+      const exceeded = {
+        windowSeconds: Math.ceil(minIntervalMs / 1000),
+        maxCount: 1,
+      } as RateLimitRule;
+      return { allowed: false, exceededRule: exceeded };
+    }
+  }
 
   for (const rule of rules) {
     const start = windowStartMs(nowMs, rule.windowSeconds).toISOString();
@@ -56,8 +72,42 @@ export async function checkAndBump(
     }
   }
 
+  await touchLastSubmission(admin, intervalKeyOf(bucketKey), nowMs);
   await maybeGlobalCleanup(admin);
   return { allowed: true };
+}
+
+function intervalKeyOf(bucketKey: string): string {
+  return `${bucketKey}:last`;
+}
+
+/** Lit le timestamp de la dernière soumission (via la table rate_limit_counters). */
+async function getLastSubmission(
+  admin: Awaited<ReturnType<typeof createAdminClient>>,
+  intervalKey: string
+): Promise<number | null> {
+  const { data, error } = await admin.from('rate_limit_counters').select('updated_at').eq('bucket_key', intervalKey);
+  if (error) return null;
+  if (!data || data.length === 0) return null;
+  const raw = data[0]?.updated_at;
+  if (!raw) return null;
+  const ts = new Date(String(raw)).getTime();
+  return Number.isFinite(ts) ? ts : null;
+}
+
+/** Enregistre la dernière soumission (upsert via bump_rate_limit avec maxCount 1). */
+async function touchLastSubmission(
+  admin: Awaited<ReturnType<typeof createAdminClient>>,
+  intervalKey: string,
+  nowMs: number
+): Promise<void> {
+  const start = windowStartMs(nowMs, 2 * 60 * 60).toISOString();
+  const { error } = await admin.rpc('bump_rate_limit', {
+    p_bucket_key: intervalKey,
+    p_window_start: start,
+    p_max_count: 1_000_000,
+  });
+  void error; // échec non bloquant : la protection intervalle devient inopérante, le quota fenêtre reste actif
 }
 
 /** Nettoyage global probabiliste des vieilles lignes (index updated_at). */

@@ -39,6 +39,8 @@ export interface RateLimitConfig {
   contact: {
     rules: RateLimitRule[];
   };
+  /** Intervalle minimal entre deux soumissions du même IP (anti-spam rapide). */
+  minSubmissionIntervalMs: number;
   /** Clé HMAC pour hacher les IP avant stockage. */
   hashSecret: string;
 }
@@ -69,6 +71,7 @@ export function getRateLimitConfig(): RateLimitConfig {
         },
       ],
     },
+    minSubmissionIntervalMs: getPositiveIntEnv('RATE_LIMIT_MIN_INTERVAL_MS', LIMITS.MIN_SUBMISSION_INTERVAL_MS),
     hashSecret: getEnv('RATE_LIMIT_HASH_SECRET') ?? '',
   };
 }
