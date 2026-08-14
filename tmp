@@ -1,0 +1,27 @@
+feat(capacity): real Supabase capacity investigation - full measured evidence
+
+SUPABASE_LIVE_INVESTIGATION_PLAN.md: methodology audit of existing k6
+scripts + dashboard correlation procedure + capacity protocol.
+
+SUPABASE_CAPACITY_FINAL_REPORT.md: 17-section report with PROVEN/LIKELY/
+UNKNOWN classification, verdict READY WITH MONITORING.
+
+Measured (read-only, anon key, real project, pauses 1-5s):
+- 50-500 VU mixed realistic workload H: p95 ~89-96ms, linear 33->306 RPS
+- 700 VU: p95 655ms; 1000 VU: p95 726ms (sweep, morning window)
+- Repeated 1000 VU runs (same config, 10-min window): p95 6324/1795/900ms
+  -> PROVEN x7 run-to-run variance, 0 errors on every run
+- Isolated endpoints @700 VU all healthy: A=91ms, B=94ms, C=90ms, D=87ms,
+  E=116ms p95 - no single query saturates
+- Burst (1s ramp) @1000 VU: p95 5425ms vs sustained 900ms; TLS avg x6.7
+- 0 HTTP errors / 0 429 / 0 5xx across 580k+ requests this investigation
+
+Conclusions:
+- PROVEN: bottleneck = cumulative Supabase REST volume >=700 VU; soft
+  degradation bounded (max 1.7s in sweep), intermittent between runs
+- LIKELY: variance from shared-CPU Free plan (official pricing verified)
+- UNKNOWN: exact mechanism - dashboard correlation (§4/§17) is the only
+  step left; UNAVAILABLE ON CURRENT PLAN noted for metrics endpoint
+- Capacity: 500 concurrent sessions -> 306 RPS, p95 96ms, 0% errors
+- Load Balancer: NOT needed (frontend healthy @1000 VU; adding replicas
+  will not increase Supabase capacity). Redis/backend: NOT needed.

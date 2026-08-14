@@ -13,7 +13,9 @@ param(
   [string]$Workload = 'H',
   [int]$Vus = 0,
   [switch]$Sweep,
-  [string]$Sustain = '2m'
+  [string]$Sustain = '2m',
+  [string]$RampUp = '30s',
+  [string]$RunLabel = ''
 )
 
 $ErrorActionPreference = 'Continue'
@@ -51,14 +53,17 @@ function Invoke-K6([int]$vu) {
   Set-Item -Path 'env:WORKLOAD' -Value $Workload
   Set-Item -Path 'env:MAX_VUS' -Value ([string]$vu)
   Set-Item -Path 'env:SUSTAIN_DURATION' -Value $Sustain
-  Write-Host ("[run] " + (Get-Date -Format 'HH:mm:ss') + " WORKLOAD=$Workload VU=$vu")
+  Set-Item -Path 'env:RAMP_UP' -Value $RampUp
+  if ($RunLabel) { Set-Item -Path 'env:RUN_LABEL' -Value $RunLabel } else { Remove-Item -Path 'env:RUN_LABEL' -ErrorAction SilentlyContinue }
+  Write-Host ("[run] " + (Get-Date -Format 'HH:mm:ss') + " WORKLOAD=$Workload VU=$vu ramp=$RampUp label=$RunLabel")
   & k6 run -q $scriptPath
   return $LASTEXITCODE
 }
 
 function Run-Level([int]$vu) {
   $code = Invoke-K6 $vu
-  $json = "$resultsRel\controlled-$Workload-${vu}vu.json"
+  $suffix = if ($RunLabel) { "-$RunLabel" } else { '' }
+  $json = "$resultsRel\controlled-$Workload-${vu}vu$suffix.json"
   $rate = $null
   $p95 = $null
   if (Test-Path $json) {

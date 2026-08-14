@@ -226,5 +226,6 @@ export default function (data) {
 
 export function handleSummary(data) {
   var w = __ENV.WORKLOAD || "H";
-  return { ["load-tests/results/controlled-" + w + "-" + (__ENV.MAX_VUS || "?") + "vu.json"]: JSON.stringify(data, null, 2) };
+  var label = __ENV.RUN_LABEL ? "-" + __ENV.RUN_LABEL : "";
+  return { ["load-tests/results/controlled-" + w + "-" + (__ENV.MAX_VUS || "?") + "vu" + label + ".json"]: JSON.stringify(data, null, 2) };
 }

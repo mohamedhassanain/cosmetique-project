@@ -1,0 +1,287 @@
+{
+  "root_group": {
+    "name": "",
+    "path": "",
+    "id": "d41d8cd98f00b204e9800998ecf8427e",
+    "groups": [],
+    "checks": [
+        {
+          "id": "f17adc3969a772d88ee8cbf8ad6cef88",
+          "passes": 24601,
+          "fails": 0,
+          "name": "E 200",
+          "path": "::E 200"
+        }
+      ]
+  },
+  "options": {
+    "summaryTrendStats": [
+      "avg",
+      "min",
+      "med",
+      "max",
+      "p(90)",
+      "p(95)",
+      "p(99)"
+    ],
+    "summaryTimeUnit": "",
+    "noColor": false
+  },
+  "state": {
+    "isStdOutTTY": false,
+    "isStdErrTTY": true,
+    "testRunDurationMs": 122861.6469
+  },
+  "metrics": {
+    "http_req_waiting": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "avg": 89.41662796406881,
+        "min": 67.0505,
+        "med": 82.9656,
+        "max": 983.2729,
+        "p(90)": 100.09434,
+        "p(95)": 110.29402999999999,
+        "p(99)": 226.6819259999996
+      }
+    },
+    "http_req_sending": {
+      "contains": "time",
+      "values": {
+        "min": 0,
+        "med": 0,
+        "max": 26.0816,
+        "p(90)": 0,
+        "p(95)": 0,
+        "p(99)": 0.5187,
+        "avg": 0.01598059179774824
+      },
+      "type": "trend"
+    },
+    "http_req_duration{expected_response:true}": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "avg": 92.92019201316857,
+        "min": 67.7215,
+        "med": 83.1895,
+        "max": 2070.3465,
+        "p(90)": 101.34063999999998,
+        "p(95)": 116.14964999999998,
+        "p(99)": 387.533526
+      }
+    },
+    "vus": {
+      "type": "gauge",
+      "contains": "default",
+      "values": {
+        "value": 4,
+        "min": 4,
+        "max": 700
+      }
+    },
+    "status_2xx": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "rate": 200.24963542955732,
+        "count": 24603
+      }
+    },
+    "data_sent": {
+      "type": "counter",
+      "contains": "data",
+      "values": {
+        "rate": 22838.925497099128,
+        "count": 2806028
+      }
+    },
+    "http_req_duration": {
+      "values": {
+        "p(99)": 387.533526,
+        "avg": 92.92019201316857,
+        "min": 67.7215,
+        "med": 83.1895,
+        "max": 2070.3465,
+        "p(90)": 101.34063999999998,
+        "p(95)": 116.14964999999998
+      },
+      "type": "trend",
+      "contains": "time"
+    },
+    "http_req_connecting": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "avg": 0.919070487338943,
+        "min": 0,
+        "med": 0,
+        "max": 60.6279,
+        "p(90)": 0,
+        "p(95)": 0,
+        "p(99)": 31.924284
+      }
+    },
+    "checks": {
+      "contains": "default",
+      "values": {
+        "fails": 0,
+        "rate": 1,
+        "passes": 24601
+      },
+      "type": "rate"
+    },
+    "vus_max": {
+      "values": {
+        "value": 700,
+        "min": 700,
+        "max": 700
+      },
+      "type": "gauge",
+      "contains": "default"
+    },
+    "http_req_tls_handshaking": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "p(90)": 0,
+        "p(95)": 0,
+        "p(99)": 38.579823999999995,
+        "avg": 1.0998448359956097,
+        "min": 0,
+        "med": 0,
+        "max": 69.4655
+      }
+    },
+    "data_received": {
+      "type": "counter",
+      "contains": "data",
+      "values": {
+        "count": 40022534,
+        "rate": 325752.86926257215
+      }
+    },
+    "http_reqs": {
+      "contains": "default",
+      "values": {
+        "count": 24603,
+        "rate": 200.24963542955732
+      },
+      "type": "counter"
+    },
+    "http_req_blocked": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "p(95)": 0,
+        "p(99)": 70.722472,
+        "avg": 2.024241921716862,
+        "min": 0,
+        "med": 0,
+        "max": 154.5991,
+        "p(90)": 0
+      }
+    },
+    "http_req_receiving": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "max": 1976.6354,
+        "p(90)": 0.7698599999999999,
+        "p(95)": 1.4340999999999955,
+        "p(99)": 86.88959799999915,
+        "avg": 3.4875834573019517,
+        "min": 0,
+        "med": 0
+      }
+    },
+    "iteration_duration": {
+      "contains": "time",
+      "values": {
+        "min": 1073.8686,
+        "med": 2601.7272,
+        "max": 5333.0847,
+        "p(90)": 3797.9248,
+        "p(95)": 3945.8821,
+        "p(99)": 4065.3631,
+        "avg": 2602.0238650501933
+      },
+      "type": "trend"
+    },
+    "iterations": {
+      "values": {
+        "count": 24601,
+        "rate": 200.23335695657195
+      },
+      "type": "counter",
+      "contains": "default"
+    },
+    "http_req_failed": {
+      "type": "rate",
+      "contains": "default",
+      "values": {
+        "rate": 0,
+        "passes": 0,
+        "fails": 24603
+      },
+      "thresholds": {
+        "rate<0.05": {
+          "ok": true
+        }
+      }
+    }
+  },
+  "setup_data": {
+    "categories": [
+      {
+        "id": "9c126241-b210-43a6-a1b1-98f0a3b9efa6",
+        "name": "test",
+        "slug": "test"
+      },
+      {
+        "slug": "soins-visage",
+        "id": "386c0062-dcfa-4517-9d97-0d482c0bed0f",
+        "name": "Soins Visage"
+      },
+      {
+        "slug": "soins-corps",
+        "id": "38387c7c-1b54-4a0e-a191-426f188ba572",
+        "name": "Soins Corps"
+      },
+      {
+        "id": "dfd9fafa-3c1c-46dd-8714-d09dc179c9c2",
+        "name": "Soins Cheveux",
+        "slug": "soins-cheveux"
+      },
+      {
+        "id": "7103880f-594c-4235-b244-c98f37391d62",
+        "name": "Maquillage",
+        "slug": "maquillage"
+      },
+      {
+        "id": "d77fdc16-f43f-46c8-b368-0448f9d06c31",
+        "name": "Parfums",
+        "slug": "parfums"
+      },
+      {
+        "id": "db87dcf2-f5b2-43fa-b6c1-4afb04f1a99d",
+        "name": "Naturel & Bio",
+        "slug": "naturel-bio"
+      },
+      {
+        "id": "43df8065-b46b-48e3-8eaa-074a8e5499d6",
+        "name": "Hygiène",
+        "slug": "hygiene"
+      },
+      {
+        "id": "b6a437a3-9945-4315-a209-0d6c06a3309e",
+        "name": "Accessoires",
+        "slug": "accessoires-beaute"
+      }
+    ],
+    "slugs": [
+      "creme-visage"
+    ]
+  }
+}
