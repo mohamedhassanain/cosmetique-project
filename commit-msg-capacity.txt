@@ -1,1 +1,0 @@
-feat(capacity): Supabase capacity investigation - measured evidence
