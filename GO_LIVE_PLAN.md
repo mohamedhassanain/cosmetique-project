@@ -28,7 +28,11 @@ supabase secrets set SUPABASE_SERVICE_ROLE_KEY=<service_role du dashboard> \
 ```
 
 - Rejouer `supabase/database.sql` (idempotent) dans le SQL Editor (RLS/index/RPC rate limiting).
-- Vérifier : `POST <SUPABASE_URL>/functions/v1/create-order` → 201 avec payload valide, 400 invalide, 429 après 3+ soumissions ; idem `create-contact`.
+- **Admin allowlist** : depuis la migration du 14/08, `is_admin() = auth.uid() ∈ admin_users`. Au premier rejeu de `database.sql`, tous les comptes Auth existants sont auto-ajoutés (seed non-bloquant). Pour tout NOUVEAU compte admin ensuite :
+  1. Dashboard → Authentication → Users → Create user (compte manuel, aucun signup public).
+  2. Copier l'UUID du compte créé.
+  3. SQL Editor (service_role) : `INSERT INTO public.admin_users (user_id) VALUES ('<uuid>') ON CONFLICT DO NOTHING;`
+  4. L'admin peut alors se connecter sur `/admin` (le guard frontend vérifie le RPC `is_admin`).
 
 ## Phase 1 — Domain + DNS
 
