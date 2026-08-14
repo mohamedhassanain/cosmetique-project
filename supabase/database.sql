@@ -310,7 +310,10 @@ AS $$
 $$;
 
 -- Exécutable par le client (RPC) pour le guard frontend RequireAdmin,
--- et par les policies RLS ci-dessous.
+-- et par les policies RLS ci-dessous. REVOKE préalable indispensable :
+-- sans lui, le privilège PUBLIC hérité d'anciennes versions resterait
+-- (la fonction est appelable par le rôle `public` par défaut).
+REVOKE ALL ON FUNCTION public.is_admin() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.is_admin() TO anon, authenticated, service_role;
 
 -- ⚠️ MIGRATION DES DONNÉES EXISTANTES (slug) :
