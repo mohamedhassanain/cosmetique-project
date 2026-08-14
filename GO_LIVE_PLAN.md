@@ -4,12 +4,31 @@ Date: 13/08/2026. Sequential, non-destructive steps to go live with the prepared
 
 ## Phase 0 — Preconditions (all done)
 
-- [x] Build/tests green (78/78), tsc, lint
+- [x] Build/tests green (97/97 Vitest, tsc, eslint, vite build) — décision 14/08
 - [x] Docker image `kissariya-web` built + verified (75 MB, no secrets, SPA fallback)
 - [x] Local origin verified at 1000 VU static (p95 5.5 ms)
 - [x] Cloudflare config documented (CLOUDFLARE_CACHE_RULES.md, CLOUDFLARE_DEPLOYMENT.md)
 - [x] Load-test tooling: `k6-cdn-compare.js` (WITH/WITHOUT-CDN), `monitor-k6.ps1`
+- [x] Benchmark contrôlé 14/08 (500/700/1000 VU, workload H) — 0 erreur (PERFORMANCE_DIAGNOSIS.md)
+- [x] Anti-abus serveur (Edge Functions + rate limiting persistant + anti-spam 5 s) committé
 - [ ] Domain owned (user) — blocks everything below
+
+## Phase 0bis — Supabase Edge Functions (REQUIS avant trafic public)
+
+Les écritures publiques (orders, contact_messages) passent par des Edge Functions.
+Les déployer une fois avec les secrets (jamais dans le frontend) :
+
+```bash
+# CLI Supabase authentifiée sur le projet ygkeuhatokvkdwwoccty
+supabase functions deploy create-order
+supabase functions deploy create-contact
+supabase secrets set SUPABASE_SERVICE_ROLE_KEY=<service_role du dashboard> \
+  RATE_LIMIT_HASH_SECRET=<secret aléatoire> \
+  ALLOWED_ORIGINS=https://<votre-domaine>
+```
+
+- Rejouer `supabase/database.sql` (idempotent) dans le SQL Editor (RLS/index/RPC rate limiting).
+- Vérifier : `POST <SUPABASE_URL>/functions/v1/create-order` → 201 avec payload valide, 400 invalide, 429 après 3+ soumissions ; idem `create-contact`.
 
 ## Phase 1 — Domain + DNS
 
