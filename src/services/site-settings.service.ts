@@ -72,14 +72,12 @@ export async function fetchAdminSiteSettings(): Promise<SiteSettings> {
 }
 
 export async function fetchWhatsAppNumber(): Promise<string> {
-  const { data, error } = await supabase
-    .from('site_settings')
-    .select('whatsapp_number')
-    .limit(1)
-    .single();
-
-  if (error) throw error;
-  return data?.whatsapp_number ?? '';
+  // Réutilise le cache mémoire partagé (10 min) et la requête publique étroite
+  // de fetchSiteSettings (whatsapp_number y est déjà sélectionné) : un clic
+  // « Commander sur WhatsApp » ne déclenche plus de requête Supabase dédiée
+  // supplémentaire à chaque clic (avant : 1 SELECT site_settings par clic).
+  const settings = await fetchSiteSettings();
+  return settings.whatsapp_number ?? '';
 }
 
 export async function updateSiteSettings(formData: Partial<SiteSettings>): Promise<unknown> {
