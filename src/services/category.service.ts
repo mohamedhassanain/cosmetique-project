@@ -8,9 +8,10 @@ import { slugify } from '@/lib/utils';
 export async function fetchCategories(): Promise<Category[]> {
   const { data, error } = await supabase
     .from('categories')
-    // Uniquement les colonnes rendues par l'UI (nav, menu, footer, filtres).
-    // Le tri serveur par sort_order fonctionne sans sélectionner la colonne.
-    .select('id, name, slug')
+    // Colonnes rendues par l'UI + description (SEO catégorie : meta description
+    // réelle, jamais inventée). Le tri serveur par sort_order fonctionne sans
+    // sélectionner la colonne.
+    .select('id, name, slug, description')
     .order('sort_order', { ascending: true });
 
   if (error) throw error;

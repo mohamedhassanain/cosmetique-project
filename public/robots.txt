@@ -1,8 +1,34 @@
+# Kissariya Cosmétiques — robots.txt
+# Autorise le crawling des pages publiques ; bloque les zones privées.
+# Remplacer https://kissariya-cosmetiques.com par le domaine final avant mise en ligne.
+
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /auth
+Disallow: /auth/
+Disallow: /acces-refuse
+Disallow: /checkout
+Disallow: /account
+
+# Les robots suivants doivent voir le HTML prérendu des fiches produit
+# (og:title / og:image) sans être gênés par les redirections.
 User-agent: Googlebot
 Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /auth
+Disallow: /auth/
+Disallow: /acces-refuse
 
 User-agent: Bingbot
 Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /auth
+Disallow: /auth/
+Disallow: /acces-refuse
 
 User-agent: Twitterbot
 Allow: /
@@ -10,5 +36,5 @@ Allow: /
 User-agent: facebookexternalhit
 Allow: /
 
-User-agent: *
-Allow: /
+# Sitemap — domaine de production final (placeholder tant que le domaine n'est pas défini).
+Sitemap: https://kissariya-cosmetiques.com/sitemap.xml

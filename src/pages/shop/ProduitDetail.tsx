@@ -14,6 +14,7 @@ import { useProductBySlug } from '@/hooks/useProducts';
 import { getProductDetailImage } from '@/lib/images';
 import { getPromoDisplay } from '@/lib/product-promo';
 import { useSeo } from '@/hooks/useSeo';
+import { absoluteUrl } from '@/lib/seo';
 import { ShoppingCart, MessageCircle, Share2, ChevronLeft, ChevronRight, Sparkles, Leaf, Flower2, Package, Play, MapPin, Navigation, X } from 'lucide-react';
 
 type MediaItem = { type: 'image' | 'video'; url: string };
@@ -52,11 +53,68 @@ export default function ProduitDetail() {
 
   const currentMedia = mediaItems[mediaIndex];
 
-  // SEO : title, description et og:image dynamiques selon le produit chargé.
+  // SEO : title, description, canonical, og:type=product, Product + BreadcrumbList
+  // JSON-LD — uniquement des données réelles du produit (jamais inventées).
   useSeo({
-    title: product ? `${product.name} — ${settings?.site_name || 'Kissariya Cosmétiques'}` : undefined,
+    title: product ? `Acheter ${product.name} au Maroc` : undefined,
     description: product?.description || undefined,
     image: product ? parseImages(product.image_url)[0] : undefined,
+    path: product ? `/produit/${product.slug}` : undefined,
+    ogType: 'product',
+    jsonLd: product
+      ? [
+          {
+            id: 'product',
+            data: {
+              '@context': 'https://schema.org',
+              '@type': 'Product',
+              name: product.name,
+              description: product.description || undefined,
+              image: parseImages(product.image_url)[0] || undefined,
+              ...(product.brand ? { brand: { '@type': 'Brand', name: product.brand } } : {}),
+              offers: {
+                '@type': 'Offer',
+                price: Number(product.price),
+                priceCurrency: 'MAD',
+                ...(product.stock_quantity > 0
+                  ? { availability: 'https://schema.org/InStock' }
+                  : { availability: 'https://schema.org/OutOfStock' }),
+              },
+            },
+          },
+          ...(product.categories?.name
+            ? [
+                {
+                  id: 'breadcrumb',
+                  data: {
+                    '@context': 'https://schema.org',
+                    '@type': 'BreadcrumbList',
+                    itemListElement: [
+                      {
+                        '@type': 'ListItem',
+                        position: 1,
+                        name: 'Accueil',
+                        item: absoluteUrl('/'),
+                      },
+                      {
+                        '@type': 'ListItem',
+                        position: 2,
+                        name: product.categories.name,
+                        item: absoluteUrl(`/produits?categorie=${product.categories.slug}`),
+                      },
+                      {
+                        '@type': 'ListItem',
+                        position: 3,
+                        name: product.name,
+                        item: absoluteUrl(`/produit/${product.slug}`),
+                      },
+                    ],
+                  },
+                },
+              ]
+            : []),
+        ]
+      : undefined,
   });
 
   const handleShare = () => {
@@ -108,6 +166,29 @@ export default function ProduitDetail() {
       </header>
 
       <main className="max-w-5xl mx-auto px-4 py-8">
+        {/* Fil d'Ariane sémantique — liens internes indexables (Accueil → Catégorie → Produit) */}
+        <nav aria-label="Breadcrumb" className="mb-6">
+          <ol className="flex flex-wrap items-center gap-1.5 text-sm text-pink-500">
+            <li>
+              <Link to="/" className="hover:text-pink-700">Accueil</Link>
+            </li>
+            {product.categories?.name && (
+              <>
+                <li aria-hidden="true" className="text-pink-300">›</li>
+                <li>
+                  <Link
+                    to={`/produits?categorie=${product.categories.slug}`}
+                    className="hover:text-pink-700"
+                  >
+                    {product.categories.name}
+                  </Link>
+                </li>
+              </>
+            )}
+            <li aria-hidden="true" className="text-pink-300">›</li>
+            <li aria-current="page" className="text-pink-900 font-medium">{product.name}</li>
+          </ol>
+        </nav>
         <div className="grid md:grid-cols-2 gap-8 lg:gap-12">
           {/* Media Gallery (images + video) */}
           <div className="space-y-4">

@@ -15,6 +15,8 @@ import { CategoryMegaMenu } from '@/components/navigation/CategoryMegaMenu';
 import Logo from '@/components/layout/Logo';
 import { Footer } from '@/components/layout/Footer';
 import { useProductActions } from '@/hooks/useProductActions';
+import { useSeo } from '@/hooks/useSeo';
+import { absoluteUrl, DEFAULT_SITE_NAME } from '@/lib/seo';
 import { Product } from '@/types/product';
 import { Search, Sparkles, TrendingUp, ChevronRight, Leaf, Flower2, Heart } from 'lucide-react';
 
@@ -27,6 +29,36 @@ export default function Index() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
   const [shareData, setShareData] = useState({ url: '', title: '' });
+
+  // SEO homepage — données réelles uniquement (aucune adresse/téléphone inventés).
+  useSeo({
+    title: 'Boutique de cosmétiques naturels et bio au Maroc',
+    description:
+      'Boutique en ligne de cosmétiques naturels et bio au Maroc. Soins visage, corps, cheveux, maquillage et parfums. Livraison partout au Maroc.',
+    path: '/',
+    jsonLd: [
+      {
+        id: 'website',
+        data: {
+          '@context': 'https://schema.org',
+          '@type': 'WebSite',
+          name: DEFAULT_SITE_NAME,
+          url: absoluteUrl('/'),
+          inLanguage: 'fr-MA',
+        },
+      },
+      {
+        id: 'organization',
+        data: {
+          '@context': 'https://schema.org',
+          '@type': 'Organization',
+          name: DEFAULT_SITE_NAME,
+          url: absoluteUrl('/'),
+          logo: absoluteUrl('/favicon-app.svg'),
+        },
+      },
+    ],
+  });
 
   const filteredProducts = useMemo(() => {
     if (!searchQuery.trim()) return [];

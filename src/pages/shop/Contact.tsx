@@ -13,8 +13,9 @@ const MAX_MESSAGE_LENGTH = 3000;
 
 export default function Contact() {
   useSeo({
-    title: 'Contact — Kissariya Cosmétiques',
+    title: 'Contact',
     description: 'Contactez Kissariya Cosmétiques : une question sur nos produits naturels et bio ? Envoyez-nous un message.',
+    path: '/contact',
   });
 
   const [name, setName] = useState('');

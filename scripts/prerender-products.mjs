@@ -1,24 +1,18 @@
 #!/usr/bin/env node
 /**
- * Prerendering statique des fiches produit (SEO / partage social).
+ * Prerendering statique des fiches produit + sitemap.xml (SEO).
  *
- * Pourquoi :
- *   - Les robots de WhatsApp/Facebook/Google ne exécutent PAS JavaScript.
- *   - Sans HTML statique, un lien https://site/produit/[slug] partagé sur WhatsApp
- *     n'affiche aucun og:title / og:image / og:description dans l'aperçu.
- *   - L'app React génère ces balises côté client uniquement (useSeo).
- *
- * Solution (Option A) :
- *   - Ce script appelle l'API publique Supabase (produits actifs, lecture ouverte).
- *   - Il génère un fichier HTML par produit dans dist/prerendered/produit/[slug]/index.html
- *     contenant les meta tags OG + twitter + un <meta http-equiv="refresh"> qui redirige
- *     les vrais utilisateurs vers l'app React (les bots s'arrêtent au HTML).
- *   - Les rewrites (vercel.json / netlify.toml) servent ce HTML aux User-Agent bots,
- *     et laissent l'app React servir les navigateurs standards.
+ * - Fiches produit : HTML statique par produit actif (og + twitter + redirect)
+ *   servi aux robots (WhatsApp/Facebook/Google) et aux navigateurs via
+ *   <meta http-equiv="refresh">.
+ * - sitemap.xml : URLs canoniques publiques (accueil, /produits, /contact,
+ *   catégories, produits actifs) — jamais /admin, /auth, ni URLs de filtres.
+ *   Généré au build (aucune infra serveur ajoutée) ; à régénérer quand le
+ *   catalogue change (npm run prerender).
  *
  * Usage :
- *   VITE_SUPABASE_URL=https://xxx.supabase.co VITE_SUPABASE_PUBLISHABLE_KEY=yyy npm run prerender
- *   (les mêmes var d'env que l'app ; la lecture des produits actifs est publique)
+ *   VITE_SUPABASE_URL=https://xxx.supabase.co VITE_SUPABASE_PUBLISHABLE_KEY=yyy \
+ *   SITE_ORIGIN=https://domaine-final.com npm run prerender
  */
 import { createClient } from '@supabase/supabase-js';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -32,7 +26,7 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
   process.exit(1);
 }
 
-const ORIGIN = process.env.SITE_ORIGIN || 'https://kissariya-cosmetiques.com';
+const ORIGIN = (process.env.SITE_ORIGIN || 'https://kissariya-cosmetiques.com').replace(/\/+$/, '');
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -56,6 +50,10 @@ function escapeHtml(value) {
     .replaceAll('>', gt)
     .replaceAll('"', quot)
     .replaceAll("'", apos);
+}
+
+function escapeXml(value) {
+  return escapeHtml(value);
 }
 
 function firstImage(imageUrl) {
@@ -116,29 +114,76 @@ function buildProductHtml(product) {
 `;
 }
 
-async function main() {
-  console.log('🔎 Récupération des produits actifs…');
-  const { data: products, error } = await supabase
-    .from('products')
-    .select(PRODUCT_SELECT)
-    .eq('is_active', true);
+/** Génère sitemap.xml depuis les données publiques réelles. */
+function buildSitemap({ categories, products }) {
+  const now = new Date().toISOString();
+  const urls = [
+    { loc: `${ORIGIN}/`, lastmod: now, priority: '1.0' },
+    { loc: `${ORIGIN}/produits`, lastmod: now, priority: '0.9' },
+    { loc: `${ORIGIN}/contact`, lastmod: now, priority: '0.5' },
+  ];
 
-  if (error) {
-    console.error('❌ Erreur Supabase :', error.message);
+  for (const category of categories || []) {
+    urls.push({
+      loc: `${ORIGIN}/produits?categorie=${encodeURIComponent(category.slug)}`,
+      lastmod: now,
+      priority: '0.8',
+    });
+  }
+
+  for (const product of products || []) {
+    urls.push({
+      loc: `${ORIGIN}/produit/${encodeURIComponent(product.slug)}`,
+      lastmod: now,
+      priority: '0.7',
+    });
+  }
+
+  const entries = urls
+    .map(
+      (u) => `  <url>\n    <loc>${escapeXml(u.loc)}</loc>\n` +
+        `    <lastmod>${u.lastmod}</lastmod>\n    <priority>${u.priority}</priority>\n  </url>`
+    )
+    .join('\n');
+
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${entries}\n</urlset>\n`;
+}
+
+async function main() {
+  console.log('🔎 Récupération des produits et catégories actifs…');
+  const [productsRes, categoriesRes] = await Promise.all([
+    supabase.from('products').select(PRODUCT_SELECT).eq('is_active', true),
+    supabase.from('categories').select('id, slug').order('sort_order', { ascending: true }),
+  ]);
+
+  if (productsRes.error) {
+    console.error('❌ Erreur Supabase (products) :', productsRes.error.message);
+    process.exit(1);
+  }
+  if (categoriesRes.error) {
+    console.error('❌ Erreur Supabase (categories) :', categoriesRes.error.message);
     process.exit(1);
   }
 
-  const outputRoot = path.resolve('dist', 'prerendered');
+  const products = productsRes.data || [];
+  const categories = categoriesRes.data || [];
+
+  const outputRoot = path.resolve('dist');
   let count = 0;
 
-  for (const product of products || []) {
-    const dir = path.join(outputRoot, 'produit', product.slug);
+  // Fiches produit prérendues
+  for (const product of products) {
+    const dir = path.join(outputRoot, 'prerendered', 'produit', product.slug);
     await mkdir(dir, { recursive: true });
     await writeFile(path.join(dir, 'index.html'), buildProductHtml(product), 'utf8');
     count += 1;
   }
 
-  console.log(`✅ ${count} fiche(s) produit prérédue(s) dans dist/prerendered/produit/…`);
+  // Sitemap.xml (racine dist → servi par Nginx à /sitemap.xml)
+  await writeFile(path.join(outputRoot, 'sitemap.xml'), buildSitemap({ categories, products }), 'utf8');
+
+  console.log(`✅ ${count} fiche(s) produit prérendue(s) dans dist/prerendered/produit/…`);
+  console.log(`✅ sitemap.xml généré (${categories.length} catégories, ${products.length} produits).`);
   console.log('Déployez le dossier dist/ avec les rewrites (vercel.json / netlify.toml) pour servir le HTML statique aux robots.');
 }
 

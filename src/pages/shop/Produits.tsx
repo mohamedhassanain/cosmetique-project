@@ -8,6 +8,7 @@ import { usePublicProducts, ProductFilters } from '@/hooks/useProducts';
 import { useCategories, useAllSubcategories } from '@/hooks/useCategories';
 import { slugify } from '@/lib/utils';
 import { useProductActions } from '@/hooks/useProductActions';
+import { useSeo } from '@/hooks/useSeo';
 import { ProductCard } from '@/components/product/ProductCard';
 import { QuickViewDialog } from '@/components/product/QuickViewDialog';
 import { ShareDialog } from '@/components/product/ShareDialog';
@@ -84,6 +85,28 @@ export default function Produits() {
 
   const { products, hasNextPage, currentPage, isLoading } = usePublicProducts(filters, filtersReadyToFetch);
 
+  // --- SEO catalogue ---
+  // Seule la page « catégorie » est indexée (URL propre ?categorie=…). Les
+  // combinaisons recherche / tri / sous-catégorie / promo / featured / page
+  // sont noindex (canonical vers la vue la plus proche) pour éviter d'indexer
+  // des variations sans stratégie SEO dédiée.
+  const searchActive = debouncedSearch.trim().length > 0;
+  const isFilteredUrl = searchActive || !!selectedSubcategory || selectedPromo || selectedFeatured || page > 1;
+  const categoryPagePath = selectedCategory ? `/produits?categorie=${selectedCategory}` : '/produits';
+  const canonicalPath = isFilteredUrl ? (selectedCategory ? categoryPagePath : '/produits') : categoryPagePath;
+  const categoryForSeo = selectedCategory ? category : null;
+
+  useSeo({
+    title: categoryForSeo
+      ? `${categoryForSeo.name} — Produits cosmétiques au Maroc`
+      : 'Produits cosmétiques au Maroc',
+    description: categoryForSeo?.description
+      ? `${categoryForSeo.description} Achetez en ligne chez Kissariya Cosmétiques au Maroc.`
+      : 'Tous nos produits cosmétiques naturels et bio : soins visage, corps, cheveux, maquillage et parfums. Achetez en ligne au Maroc.',
+    path: canonicalPath,
+    index: !isFilteredUrl,
+  });
+
   useEffect(() => {
     const cat = searchParams.get('categorie');
     setSelectedCategory(cat);
@@ -132,13 +155,21 @@ export default function Produits() {
       <main className="max-w-7xl mx-auto px-4 py-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
+            {/* H1 sémantique : nom réel de la catégorie quand elle est active,
+                sinon titre générique du catalogue. */}
             <h1 className="text-3xl font-display font-bold text-pink-900">
-              {selectedPromo ? 'Promotions' : selectedFeatured ? 'Recommandé' : 'Nos Produits'}
+              {categoryForSeo ? categoryForSeo.name : selectedPromo ? 'Promotions' : selectedFeatured ? 'Recommandé' : 'Nos Produits'}
             </h1>
             {/* Le total exact a été remplacé par le nombre de produits affichés :
                 la pagination « page suivante » n'exige plus de COUNT(*) exact
                 coûteux (voir PERFORMANCE_AUDIT.md, phase 3). */}
             <p className="text-pink-600">{isLoading ? 'Chargement…' : `${products.length} produit(s) affiché(s)`}</p>
+            {/* Description de catégorie : uniquement si une vraie description
+                existe en base (le champ description est renseignable dans l'admin
+                Catégories). Jamais de texte générique inventé. */}
+            {categoryForSeo?.description && (
+              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-pink-700/80">{categoryForSeo.description}</p>
+            )}
           </div>
           <div className="flex items-center gap-3">
             <Select value={sortBy} onValueChange={(v: 'newest' | 'price-asc' | 'price-desc') => setSortBy(v)}>

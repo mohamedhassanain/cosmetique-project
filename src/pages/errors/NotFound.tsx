@@ -2,9 +2,18 @@ import { useLocation, Link } from "react-router-dom";
 import { useEffect } from "react";
 import { Flower2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useSeo } from "@/hooks/useSeo";
 
 const NotFound = () => {
   const location = useLocation();
+
+  // noindex : les URLs inconnues ne doivent jamais polluer l'index Google.
+  useSeo({
+    title: 'Page introuvable',
+    description: 'La page demandée est introuvable.',
+    path: location.pathname,
+    index: false,
+  });
 
   useEffect(() => {
     console.error("404 Error: User attempted to access non-existent route:", location.pathname);
