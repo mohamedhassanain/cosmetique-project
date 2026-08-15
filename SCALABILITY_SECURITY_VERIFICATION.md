@@ -52,27 +52,33 @@ ils nécessitent un compte de test dédié et un projet d'isolation.
 ### Modèle d'autorisation (actuel)
 
 Ce projet Supabase Auth est réservé EXCLUSIVEMENT aux comptes administrateurs.
-Il n'existe AUCUN système de rôles :
+Pas de colonne `role`, pas de `app_metadata` de rôle : le contrôle repose sur
+l'allowlist explicite `public.admin_users` :
 
-- **Utilisateur authentifié (`auth.uid() IS NOT NULL`) → ADMIN**
+- **Utilisateur authentifié ET présent dans `public.admin_users` → ADMIN**
+- **Utilisateur authentifié absent de l'allowlist → PAS ADMIN**
 - **Visiteur non connecté → PAS ADMIN**
 
 Les comptes sont créés manuellement par l'administrateur de confiance :
-Supabase Dashboard → Authentication → Users → Create user (email + mot de passe).
-L'application ne propose ni inscription publique, ni page /signup, ni appel
-`signUp()`.
+Supabase Dashboard → Authentication → Users → Create user (email + mot de passe),
+puis leur UUID est ajouté à `admin_users` (seed automatique au premier
+déploiement, sinon INSERT via SQL Editor). L'application ne propose ni
+inscription publique, ni page /signup, ni appel `signUp()`.
 
 ### `is_admin()`
 
 ```sql
-SELECT auth.uid() IS NOT NULL;
+SELECT EXISTS (
+  SELECT 1 FROM public.admin_users
+  WHERE user_id = auth.uid()
+);
 ```
 
-C'est SÛR sous cette architecture : aucun visiteur ne peut créer de compte
-lui-même, donc « authentifié » implique « compte admin créé manuellement ».
-Aucune donnée utilisateur-éditable (`raw_user_meta_data`, profil) n'est utilisée
-pour l'autorisation. **Ne pas** réintroduire de table `admin_users` ni de
-colonne `role`.
+SECURITY DEFINER, STABLE — lisant `admin_users` malgré son RLS, `auth.uid()`
+restant dérivé du JWT appelant. Table protégée : RLS activée, aucune policy,
+privilèges anon/authenticated révoqués → seuls le SQL Editor (service_role) et
+les Edge Functions gèrent l'allowlist. Un compte auto-créé (si l'inscription
+était réactivée) serait bloqué : `is_admin()` = false, aucune policy RLS.
 
 ### Vérifications de comportement
 
@@ -85,22 +91,28 @@ Compte admin (Auth) connecté → is_admin() = true  → accès /admin complet
 
 Toutes les tables sensibles (products, orders, contact_messages, categories,
 subcategories, site_settings, promos, product_images, storage.objects) utilisent
-`public.is_admin()` dans leurs policies d'écriture. Les SELECT publics restent
-limités aux lectures légitimes (`products.is_active`, `promos.is_active`, etc.).
-Les INSERT publics intentionnels restent ouverts uniquement pour `orders`
-(commandes WhatsApp) et `contact_messages` (formulaire de contact).
+`public.is_admin()` dans leurs policies admin. Les SELECT publics restent limités
+aux lectures légitimes (`products.is_active`, `promos.is_active`, etc.). Les
+écritures visiteurs sont FERMÉES côté REST : `orders` et `contact_messages`
+n'ont AUCUNE policy d'INSERT publique — la création passe uniquement par les
+Edge Functions `create-order` / `create-contact` (service_role, validation,
+rate limiting persistant en PostgreSQL).
 
 ### Configuration requise dans le dashboard Supabase
 
 1. **Authentication → Providers → Email** : laisser l'option « Allow new users
    to sign up » DÉSACTIVÉE — il n'y a aucune inscription publique.
 2. **Créer les comptes admin** : Authentication → Users → Create user
-   (email + mot de passe). Chaque compte créé est un compte admin.
-   Ex. : admin1@example.com, admin2@example.com, admin3@example.com — tous
-   valides sans aucune configuration supplémentaire.
+   (email + mot de passe). Ex. : admin1@example.com, admin2@example.com,
+   admin3@example.com.
 3. **SQL Editor** : exécuter UNIQUEMENT `supabase/database.sql` (idempotent).
-   Aucun autre script n'est requis ; ce fichier ne crée plus ni `admin_users`
-   ni RPC de gestion d'admins.
+   Ce fichier crée la table d'allowlist `public.admin_users`, la fonction
+   `public.is_admin()`, le seed initial, les policies RLS et le moteur de rate
+   limiting. Au premier déploiement (table vide), tous les comptes Auth existants
+   deviennent admins automatiquement ; ensuite, ajouter un admin =
+   `INSERT INTO public.admin_users (user_id) VALUES ('<uuid>');` (SQL Editor).
+4. **Edge Functions** : déployer `create-order` et `create-contact` avec les
+   secrets `SUPABASE_SERVICE_ROLE_KEY`, `RATE_LIMIT_HASH_SECRET`, `ALLOWED_ORIGINS`.
 
 ---
 
@@ -195,10 +207,14 @@ Required action: voir section 1.
 
 ### Résumé
 
-- ✅ Sécurité admin : tout compte Supabase Auth créé manuellement = admin
-  (aucun système de rôles, aucune table admin_users), RLS active.
+- ✅ Sécurité admin : allowlist explicite `public.admin_users` + `is_admin()`
+  (auth.uid() ∈ admin_users), RLS active, table protégée (aucune policy,
+  accès anon/authenticated révoqués), seed automatique au premier déploiement.
 - ✅ Aucune inscription publique, aucun mécanisme de création de compte
   dans l'application.
+- ✅ Écritures visiteurs fermées côté REST : `orders` / `contact_messages`
+  passent uniquement par les Edge Functions `create-order` / `create-contact`
+  (validation, rate limiting persistant, service_role).
 - ✅ Images produit/héro optimisées (srcSet, sizes, lazy/eager).
 - ✅ TypeScript, ESLint, build et 70 tests unitaires passent.
 - ⚠️ Load test réel Supabase et E2E : non exécutés (identifiants/environnement

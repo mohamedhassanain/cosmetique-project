@@ -95,9 +95,14 @@ PostgreSQL (plan Free, instance unique)
 
 ## 9. Stratégie RLS
 
-- `public.is_admin()` = `auth.uid() IS NOT NULL` — prédicat constant, sans jointure.
+- `public.is_admin()` = existence de `auth.uid()` dans la table d'allowlist
+  `public.admin_users` (SECURITY DEFINER, PK indexée) — coût constant, pas de
+  jointure lourde.
 - `products` public : `is_active = true` (indexé). `product_images` public : EXISTS sur products actifs (product_id indexé) — plus sollicité (détail public n'embarque plus product_images).
-- INSERT publics uniquement : `orders` (WhatsApp) + `contact_messages`. Tout le reste admin-only.
+- INSERT public direct FERMÉ : aucune policy anon INSERT sur `orders` ni
+  `contact_messages` — les écritures visiteurs passent uniquement par les
+  Edge Functions `create-order` / `create-contact` (service_role, rate-limitées,
+  validées). Tout le reste admin-only via `is_admin()`.
 - **Aucun affaiblissement nécessaire. Aucune proposition RLS.**
 
 ## 10. Optimisations recommandées (round 2)

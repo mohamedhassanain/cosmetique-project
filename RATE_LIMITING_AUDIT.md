@@ -16,8 +16,11 @@ React/Vite frontend (React 18, React Query, zod)
 Supabase (Auth / PostgreSQL / Storage)
 ```
 
-- No backend, no Edge Functions, no proxy. The browser talks directly to PostgREST
+- No backend, no proxy. Public GETs go directly from the browser to PostgREST
   (`/rest/v1/*`) and GoTrue (`/auth/v1/*`) with the **anon** key.
+- Public WRITES (order / contact creation) go exclusively through the Supabase
+  Edge Functions `create-order` / `create-contact` — the only server-side code,
+  running on the Supabase platform (outside the web container).
 - Deployment: Nginx static container (Docker) or Netlify/Vercel — frontend only.
 - Docker/Nginx serve static files only; no routing to any backend.
 
@@ -47,25 +50,30 @@ Client-side protections today:
 
 ## 4. Current RLS policies (from `supabase/database.sql`)
 
-Admin model: any authenticated user is admin (`is_admin()` = `auth.uid() IS NOT NULL`); accounts are created manually, no public signup.
+Admin model: `is_admin()` = `auth.uid()` EXISTS in the `admin_users` allowlist table (created by `supabase/database.sql`; RLS-enabled, no policies, anon/authenticated privileges revoked — only `service_role`, i.e. SQL Editor / Edge Functions, can manage it). Accounts are created manually, no public signup.
 
 | Table | Public | Admin |
 |---|---|---|
-| `orders` | **INSERT WITH CHECK (true)** | SELECT / UPDATE / DELETE via `is_admin()` |
-| `contact_messages` | **INSERT WITH CHECK (true)** | SELECT via `is_admin()` (no UPDATE/DELETE policy) |
+| `orders` | **no INSERT** (public creation goes through the `create-order` Edge Function only) | INSERT / SELECT / UPDATE / DELETE via `is_admin()` |
+| `contact_messages` | **no INSERT** (public creation goes through the `create-contact` Edge Function only) | SELECT via `is_admin()` (no UPDATE/DELETE policy) |
 | `products` | SELECT `is_active=true` | SELECT all + ALL |
 | `categories / subcategories / product_images / site_settings / promos` | SELECT | ALL |
 
-### Critical finding
-Both write tables carry an **unconditional anon INSERT policy** (`WITH CHECK (true)`), i.e. there is currently **no** server-side protection on `orders` and `contact_messages` creation. Anybody can POST to:
-- `POST /rest/v1/orders`
-- `POST /rest/v1/contact_messages`
-Directly, bypassing the frontend entirely.
+### Critical finding (now fixed)
+At audit time both write tables carried an **unconditional anon INSERT policy** (`WITH CHECK (true)`), i.e. there was **no** server-side protection on `orders` and `contact_messages` creation.
+**Current state (post-fix):** those anon INSERT policies are REMOVED, and public creation is only possible through the `create-order` / `create-contact` Edge Functions (service_role, rate-limited, validated). Direct posts to `POST /rest/v1/orders` / `POST /rest/v1/contact_messages` are blocked by RLS.
 
 ## 5. Edge Functions
 
-- `supabase/functions/` does not exist. **No Edge Functions**.
-- No `supabase/migrations/` content. `supabase/config.toml` defines `project_id = "khktvzedjlcrqtjoyfky"` (note: `.env.example` references a different project id `ygkeuhatokvkdwwoccty` — likely a stale sample; deployment must use the real project).
+- `supabase/functions/` now contains the two public write-path functions:
+  - `create-order/` — public order creation (validation → persistent rate
+    limiting → `service_role` insert, price derived server-side).
+  - `create-contact/` — public contact message creation (same pipeline).
+  - `_shared/` — CORS, env access, IP hashing, rate-limit engine, minimal
+    `service_role` PostgREST client, payload validation (unit-tested).
+- No `supabase/migrations/` content (single schema script `supabase/database.sql`).
+- `supabase/config.toml` defines `project_id = "ygkeuhatokvkdwwoccty"`
+  (the production project — fixed 2026-08-15).
 
 ## 6. Environment variables (`.env.example`)
 

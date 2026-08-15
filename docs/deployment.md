@@ -6,12 +6,18 @@
 
 - [ ] Exécuter `supabase/database.sql` dans le SQL Editor (idempotent, rejouable).
 - [ ] Vérifier que les policies RLS admin utilisent `public.is_admin()` :
-      `R` dans Supabase → `SELECT policyname FROM pg_policies WHERE tablename = 'orders';`
-- [ ] Vérifier le profile admin : `SELECT user_id, role FROM public.profiles;` → `role` doit être `admin`.
+      `SELECT policyname FROM pg_policies WHERE tablename = 'orders';`
+- [ ] Vérifier l'allowlist admin : `SELECT user_id FROM public.admin_users;` — l'UUID de chaque
+      compte admin doit y figurer (créés manuellement dans Dashboard → Authentication → Users).
+      Ajouter/retirer un admin : SQL Editor → `INSERT INTO public.admin_users (user_id) VALUES ('<uuid>');`
+      / `DELETE ...` (RLS sans policy → les clients anon/authenticated ne peuvent jamais le faire).
 - [ ] Remplacer le numéro WhatsApp de fallback `+212600000000` par le vrai numéro dans `site_settings`.
 - [ ] Activer **2FA / captcha** sur le projet Supabase (Auth → Providers) si disponible.
-- [ ] **TODO bloquant à grande échelle** : rate limiting par IP sur `orders` (INSERT public) et
-      `contact_messages` — Edge Function Supabase ou edge proxy (cf. README → Sécurité).
+- [ ] Déployer les Edge Functions publiques (écritures visiteurs — rate limiting + validation) :
+      `supabase functions deploy create-order` et `supabase functions deploy create-contact`
+      avec les secrets `SUPABASE_SERVICE_ROLE_KEY`, `RATE_LIMIT_HASH_SECRET`, `ALLOWED_ORIGINS`.
+      Vérifier que les INSERT anon directs `POST /rest/v1/orders` et
+      `POST /rest/v1/contact_messages` sont bien bloqués par RLS (aucune policy INSERT publique).
 
 ## 2. Build & prerendering SEO
 
