@@ -2,21 +2,22 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ShieldAlert, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/providers/auth-utils";
 
 /**
  * Page « Accès refusé » — affichée quand un utilisateur connecté n'a pas
  * les droits administrateur (UUID absent de l'allowlist `admin_users`).
  *
  * La sécurité réelle est assurée par RLS côté Supabase (`is_admin()`).
- * Cette page ajoute la possibilité de se DÉCONNECTER explicitement : le
- * bouton « Déconnexion » appelle `supabase.auth.signOut()` (mécanisme
- * Supabase existant — pas de second système d'auth). La session étant
- * révoquée, un retour arrière vers /admin retombe sur RequireAdmin
- * (utilisateur non connecté) → redirection vers /admin/login.
+ * Le bouton « Déconnexion » passe par l'AuthProvider existant
+ * (`useAuth().signOut()` → `supabase.auth.signOut()` + reset de l'état
+ * local). Une fois la session révoquée, un retour arrière vers /admin
+ * retombe sur RequireAdmin (utilisateur non connecté) → redirection
+ * vers /admin/login.
  */
 const AccesRefuse = () => {
   const navigate = useNavigate();
+  const { signOut } = useAuth();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -24,7 +25,7 @@ const AccesRefuse = () => {
     if (isSigningOut) return; // anti double-clic
     setIsSigningOut(true);
     setErrorMessage(null);
-    const { error } = await supabase.auth.signOut();
+    const { error } = await signOut();
     if (error) {
       // Erreur technique : loggée uniquement côté dev, jamais exposée à l'utilisateur.
       if (import.meta.env.DEV) {

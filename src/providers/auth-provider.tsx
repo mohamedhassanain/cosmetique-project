@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useEffect, useState, ReactNode, useCallback } from 'react';
-import { User, Session } from '@supabase/supabase-js';
+import { User, Session, AuthError } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { AuthContext } from './auth-context';
 
@@ -75,9 +75,19 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
     return { error };
   }, []);
 
-  const signOut = useCallback(async () => {
-    await supabase.auth.signOut();
+  const signOut = useCallback(async (): Promise<{ error: AuthError | null }> => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      // Échec de révocation : on ne masque pas l'erreur — elle est renvoyée à
+      // l'appelant (qui l'affiche à l'utilisateur). L'état local est conservé.
+      return { error };
+    }
+    // Succès : révocation + mise à jour immédiate de l'état local (sans
+    // dépendre uniquement de l'événement asynchrone onAuthStateChange).
+    setSession(null);
+    setUser(null);
     setIsAdmin(false);
+    return { error: null };
   }, []);
 
   const contextValue = React.useMemo(() => ({
