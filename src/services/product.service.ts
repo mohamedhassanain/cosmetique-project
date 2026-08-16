@@ -265,16 +265,23 @@ export async function fetchPublicProducts(filters: ProductFilters = {}): Promise
   };
 }
 
+/**
+ * Fiche produit publique par slug.
+ * `maybeSingle()` : un produit inconnu/inactif retourne `null` (et NON une
+ * erreur PGRST116) — la page affiche alors un vrai 404 `noindex` au lieu
+ * d'un soft-404 indexable. Les vraies erreurs (réseau, serveur) continuent
+ * de remonter pour être gérées par React Query.
+ */
 export async function fetchProductBySlug(slug: string): Promise<Product | null> {
   const { data, error } = await supabase
     .from('products')
     .select(PRODUCT_SELECT_PUBLIC_DETAIL)
     .eq('slug', slug)
     .eq('is_active', true)
-    .single();
+    .maybeSingle();
 
   if (error) throw error;
-  return data as unknown as Product;
+  return (data as unknown as Product) ?? null;
 }
 
 async function replaceProductImages(productId: string, images: string[]): Promise<void> {

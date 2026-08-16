@@ -19,7 +19,16 @@
       Vérifier que les INSERT anon directs `POST /rest/v1/orders` et
       `POST /rest/v1/contact_messages` sont bien bloqués par RLS (aucune policy INSERT publique).
 
-## 2. Build & prerendering SEO
+## 2. Build & prerendering SEO (Docker déterministe)
+
+`docker compose build` (ou `docker build`) exécute **automatiquement** `vite build` **puis**
+`npm run prerender` (`RUN_PRERENDER=true` par défaut) → l'image contient toujours :
+
+- `sitemap.xml` (racine `dist/`, URLs publiques uniquement)
+- `robots.txt` généré avec `SITE_ORIGIN` (remplace le placeholder `public/robots.txt`)
+- `dist/prerendered/produit/[slug]/index.html` par produit actif (Product JSON-LD + BreadcrumbList)
+
+Le build local sans Docker nécessite deux commandes :
 
 ```bash
 # Depuis la racine, avec les variables du projet :
@@ -27,12 +36,14 @@ VITE_SUPABASE_URL=... VITE_SUPABASE_PUBLISHABLE_KEY=... SITE_ORIGIN=https://votr
   npm run build && npm run prerender
 ```
 
-- [ ] Le dossier `dist/` contient `index.html` (SPA) **et** `dist/prerendered/produit/[slug]/index.html` (SEO).
+- [ ] `SITE_ORIGIN` est définie dans `.env` (ou `--build-arg`) — obligatoire : `docker compose build` refuse de builder sans elle.
+- [ ] Le dossier `dist/` contient `index.html` (SPA), `sitemap.xml`, `robots.txt` **et** `dist/prerendered/produit/[slug]/index.html` (SEO).
 - [ ] `curl -s https://votre-domaine.fr/produit/[slug]` avec un User-Agent bot (ex: `WhatsApp`) retourne
       les meta tags `og:title`, `og:description`, `og:image`, `og:url`, `twitter:card` **dans le HTML brut**
       (sans exécuter de JavaScript).
 - [ ] Un navigateur normal (`Mozilla/5.0`) reçoit l'app React (le HTML statique le redirige via
       `<meta http-equiv="refresh">`).
+- [ ] Nginx (Docker) sert le HTML prérendu aux bots sur `/produit/:slug` (voir `nginx/default.conf`).
 
 ## 3. Cloudflare (recommandé devant Vercel/Netlify)
 

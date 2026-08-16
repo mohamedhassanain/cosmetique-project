@@ -4,14 +4,23 @@
  * Centralise la construction d'URLs absolues (canonical / og:url / og:image),
  * la gestion des balises meta, du rel=canonical, du robots meta et du JSON-LD.
  * Aucune donnée privée n'y transite : uniquement du public.
+ *
+ * SITE_ORIGIN centralisée :
+ *   * Runtime navigateur → `window.location.origin` (le vrai domaine) — les
+ *     canonicals/og:url sont donc TOUJOURS cohérents avec l'URL servie.
+ *   * Environnements sans DOM (tests, outils de build) → `DEFAULT_SITE_ORIGIN`,
+ *     le placeholder DOCUMENTÉ (identique à .env.example). Le domaine FINAL
+ *     n'est pas acheté : aucune valeur « finale » n'est codée en dur.
+ *   * Sitemap / robots.txt / fiches prérendues → `SITE_ORIGIN` de
+ *     scripts/prerender-products.mjs (variable d'environnement au build).
  */
 
 export const DEFAULT_SITE_NAME = 'Kissariya Cosmétiques';
 
-/** Domaine de repli documenté tant que le domaine final n'est pas configuré. */
+/** Placeholder DOCUMENTÉ tant que le domaine final n'est pas configuré (voir .env.example). */
 export const DEFAULT_SITE_ORIGIN = 'https://kissariya-cosmetiques.com';
 
-/** Origin courant (au runtime → le domaine de production une fois déployé). */
+/** Origin courante (au runtime → le domaine de production une fois déployé). */
 export function getSiteOrigin(): string {
   if (typeof window !== 'undefined' && window.location?.origin) {
     return window.location.origin;

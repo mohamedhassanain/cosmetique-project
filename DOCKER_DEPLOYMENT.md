@@ -18,10 +18,18 @@ in Docker.
 ```
 VITE_SUPABASE_URL=https://<project>.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=<anon key>     # public by design
+SITE_ORIGIN=https://votre-domaine.fr         # REQUIRED — origin de production
 VITE_SUPABASE_PROJECT_ID=<project ref>       # optional
 VITE_SENTRY_DSN=                             # optional
 VITE_SENTRY_ENVIRONMENT=production           # optional
+RUN_PRERENDER=true                           # optional — déterministe (défaut true)
 ```
+
+`SITE_ORIGIN` est la **single source of truth** du SEO de production : elle pilote
+`sitemap.xml`, `robots.txt` et les canonicals/og:url des fiches produit prérendues.
+Le domaine final n'est pas encore acheté → utiliser le placeholder documenté
+(`https://kissariya-cosmetiques.com`, cf. `.env.example`) et le remplacer plus tard
+sans toucher au code.
 
 ---
 
@@ -42,17 +50,22 @@ docker compose up -d --build
 docker build `
   --build-arg VITE_SUPABASE_URL=https://<project>.supabase.co `
   --build-arg VITE_SUPABASE_PUBLISHABLE_KEY=<anon key> `
+  --build-arg SITE_ORIGIN=https://votre-domaine.fr `
   -t my-ecommerce-frontend .
 ```
 
 Optional build args: `VITE_SUPABASE_PROJECT_ID`, `VITE_SENTRY_DSN`,
-`VITE_SENTRY_ENVIRONMENT`, and `RUN_PRERENDER=true` (runs `npm run prerender`
-at build time to generate `dist/prerendered/produit/[slug]/index.html` SEO
-pages — requires network access to Supabase during the build).
+`VITE_SENTRY_ENVIRONMENT`. `RUN_PRERENDER=true` is the **default** — it runs
+`npm run prerender` at build time to generate `dist/sitemap.xml`,
+`dist/robots.txt` and `dist/prerendered/produit/[slug]/index.html` SEO pages
+(requires network access to Supabase during the build). Set `RUN_PRERENDER=false`
+only for cache-only CI/test images.
 
 > The build **fails fast** if `VITE_SUPABASE_URL` or
-> `VITE_SUPABASE_PUBLISHABLE_KEY` are missing (`RUN test -n ...`) so you can
-> never ship a broken bundle.
+> `VITE_SUPABASE_PUBLISHABLE_KEY` are missing (`RUN test -n ...`), and **if
+> `SITE_ORIGIN` is missing while `RUN_PRERENDER=true`** (the prerender needs the
+> production origin for sitemap/canonical/robots) — a broken or SEO-incomplete
+> image can never ship.
 
 ---
 

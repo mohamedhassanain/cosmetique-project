@@ -4,6 +4,7 @@ import {
   createProduct,
   updateProduct,
   fetchPublicProducts,
+  fetchProductBySlug,
   sanitizeSearchTerm,
   MAX_PAGE_SIZE,
 } from '../product.service';
@@ -149,6 +150,32 @@ describe('product.service', () => {
 
     it('retourne une chaîne vide si le terme ne contient que des caractères dangereux', () => {
       expect(sanitizeSearchTerm(',()%')).toBe('');
+    });
+  });
+
+  describe('fetchProductBySlug', () => {
+    it("retourne le produit actif trouvé (maybeSingle)", async () => {
+      const product = { id: 'p1', name: 'Crème Visage', slug: 'creme-visage' };
+      mockedFrom.mockReturnValueOnce(createBuilder({ data: product, error: null }));
+
+      const result = await fetchProductBySlug('creme-visage');
+
+      const builder = mockedFrom.mock.results[0].value as Record<string, ReturnType<typeof vi.fn>>;
+      expect(builder.eq).toHaveBeenCalledWith('slug', 'creme-visage');
+      expect(builder.eq).toHaveBeenCalledWith('is_active', true);
+      expect(builder.maybeSingle).toHaveBeenCalled();
+      expect(result).toEqual(product);
+    });
+
+    it("retourne null pour un slug inconnu — pas d'erreur PGRST116, donc pas de soft-404", async () => {
+      // maybeSingle retourne { data: null } quand le produit n'existe pas
+      // (contrairement à .single() qui lève PGRST116). Le composant affiche
+      // alors un VRAI 404 noindex au lieu d'une page indexable « produit introuvable ».
+      mockedFrom.mockReturnValueOnce(createBuilder({ data: null, error: null }));
+
+      const result = await fetchProductBySlug('produit-inexistant');
+
+      expect(result).toBeNull();
     });
   });
 

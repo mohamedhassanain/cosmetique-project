@@ -1,18 +1,30 @@
 #!/usr/bin/env node
 /**
- * Prerendering statique des fiches produit + sitemap.xml (SEO).
+ * Prerendering statique SEO + sitemap.xml + robots.txt (production, build-time).
  *
- * - Fiches produit : HTML statique par produit actif (og + twitter + redirect)
- *   servi aux robots (WhatsApp/Facebook/Google) et aux navigateurs via
- *   <meta http-equiv="refresh">.
- * - sitemap.xml : URLs canoniques publiques (accueil, /produits, /contact,
- *   catégories, produits actifs) — jamais /admin, /auth, ni URLs de filtres.
- *   Généré au build (aucune infra serveur ajoutée) ; à régénérer quand le
- *   catalogue change (npm run prerender).
+ * Architecture cible : Cloudflare → Docker → Nginx → React/Vite → Supabase.
+ * Ce script tourne PENDANT le build Docker (pas de runtime, pas de serveur,
+ * aucune requête supplémentaire pour les visiteurs) :
  *
- * Usage :
- *   VITE_SUPABASE_URL=https://xxx.supabase.co VITE_SUPABASE_PUBLISHABLE_KEY=yyy \
- *   SITE_ORIGIN=https://domaine-final.com npm run prerender
+ *   1. Fiches produit : un HTML statique PAR PRODUIT ACTIF dans
+ *      dist/prerendered/produit/<slug>/index.html. Nginx le sert aux robots
+ *      (Googlebot, facebookexternalhit, Twitterbot…) sur /produit/<slug> ;
+ *      les navigateurs sont redirigés vers l'app par <meta http-equiv="refresh">.
+ *   2. sitemap.xml : URLs canoniques publiques (accueil, /produits, /contact,
+ *      catégories, produits actifs) — jamais /admin, /auth, /checkout, ni
+ *      URLs de filtres (recherche/tri/promo/pagination).
+ *   3. robots.txt : généré dans dist/ avec SITE_ORIGIN — remplace le
+ *      placeholder public/robots.txt à la volée (aucun domaine en dur).
+ *
+ * Usage (cf. .env.example + Dockerfile) :
+ *   VITE_SUPABASE_URL=https://xxx.supabase.co \
+ *   VITE_SUPABASE_PUBLISHABLE_KEY=yyy \
+ *   SITE_ORIGIN=https://domaine-final.com \
+ *   npm run prerender
+ *
+ * SITE_ORIGIN est OBLIGATOIRE en production (le script refuse un domaine
+ * placeholder). En local, un placeholder documenté est accepté (voir
+ * README/.env.example). Aucun domaine final en dur dans ce fichier.
  */
 import { createClient } from '@supabase/supabase-js';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -26,14 +38,32 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
   process.exit(1);
 }
 
-const ORIGIN = (process.env.SITE_ORIGIN || 'https://kissariya-cosmetiques.com').replace(/\/+$/, '');
+/**
+ * Origin de production, SDCF (single source of truth) pour sitemap,
+ * canonicals et OG des pages prérendues. Placeholder documenté tant que le
+ * domaine final n'est pas acheté — JAMAIS un domaine prétendu « final ».
+ */
+const DEFAULT_SITE_ORIGIN = 'https://kissariya-cosmetiques.com';
+
+const rawOrigin = process.env.SITE_ORIGIN || '';
+const ORIGIN = rawOrigin.replace(/\/+$/, '');
+if (!ORIGIN) {
+  console.error(
+    '❌ SITE_ORIGIN est requis (ex: https://votre-domaine.com). ' +
+    'Placeholder local documenté : ' + DEFAULT_SITE_ORIGIN
+  );
+  process.exit(1);
+}
+
+const SITE_NAME = 'Kissariya Cosmétiques';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
+/** Champs publics nécessaires au SEO des fiches prérendues (jointure catégorie incluse). */
 const PRODUCT_SELECT = `
-  id, name, slug, description, price,
-  image_url, brand, is_active,
-  categories(name)
+  id, name, slug, description, price, image_url, brand,
+  stock_quantity, updated_at, is_active,
+  categories(name, slug)
 `;
 
 // NB : les entités HTML sont construites à partir de String.fromCharCode(38) ('&')
@@ -67,46 +97,129 @@ function firstImage(imageUrl) {
   }
 }
 
+/** Meta description : description RÉELLE du produit, jamais de texte inventé. */
+function productDescription(product) {
+  return (product.description || '').trim().slice(0, 200) || null;
+}
+
+/**
+ * JSON-LD Product — PARITÉ stricte avec React (src/pages/shop/ProduitDetail.tsx).
+ * Uniquement des données réelles : jamais de sku/reviews/ratings/brand/adresse
+ * inventés. offers n'est posé que si le prix est un nombre valide ; availability
+ * dépend réellement de stock_quantity.
+ */
+function productJsonLd(product) {
+  const image = firstImage(product.image_url || null);
+  const description = productDescription(product);
+  const price = Number(product.price);
+
+  const data = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: product.name,
+    ...(description ? { description } : {}),
+    ...(image ? { image } : {}),
+    ...(product.brand ? { brand: { '@type': 'Brand', name: product.brand } } : {}),
+  };
+
+  if (Number.isFinite(price) && price >= 0) {
+    data.offers = {
+      '@type': 'Offer',
+      price,
+      priceCurrency: 'MAD',
+      ...(product.stock_quantity > 0
+        ? { availability: 'https://schema.org/InStock' }
+        : { availability: 'https://schema.org/OutOfStock' }),
+    };
+  }
+
+  return data;
+}
+
+/**
+ * JSON-LD BreadcrumbList — seulement si une catégorie réelle existe
+ * (parité avec React : Absence de catégorie → pas de breadcrumb JSON-LD).
+ */
+function breadcrumbJsonLd(product) {
+  if (!product.categories?.name || !product.categories?.slug) return null;
+
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Accueil', item: `${ORIGIN}/` },
+      {
+        '@type': 'ListItem',
+        position: 2,
+        name: product.categories.name,
+        item: `${ORIGIN}/produits?categorie=${encodeURIComponent(product.categories.slug)}`,
+      },
+      {
+        '@type': 'ListItem',
+        position: 3,
+        name: product.name,
+        item: `${ORIGIN}/produit/${encodeURIComponent(product.slug)}`,
+      },
+    ],
+  };
+}
+
+/**
+ * HTML statique d'une fiche produit. Titre et og:title correspondent au React
+ * (« Acheter {name} au Maroc | {site} ») — pas de divergence entre la fiche
+ * prérendue et la fiche hydratée.
+ */
 function buildProductHtml(product) {
   const slug = product.slug;
   const url = `${ORIGIN}/produit/${encodeURIComponent(slug)}`;
   const image = firstImage(product.image_url || null);
-  const description = (product.description || `Découvrez ${product.name} sur Kissariya Cosmétiques.`)
-    .slice(0, 200);
-  const title = `${product.name} — Kissariya Cosmétiques`;
-  const priceLabel = Number(product.price).toLocaleString('fr-FR');
+  const description = productDescription(product);
+  const title = `Acheter ${product.name} au Maroc`;
+  const fullTitle = `${title} | ${SITE_NAME}`;
+
+  const jsonLdBlocks = [productJsonLd(product)];
+  const breadcrumb = breadcrumbJsonLd(product);
+  if (breadcrumb) jsonLdBlocks.push(breadcrumb);
+
+  const noindex = !product.is_active
+    ? '<meta name="robots" content="noindex, nofollow" />'
+    : '';
 
   return `<!doctype html>
 <html lang="fr">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>${escapeHtml(title)}</title>
-    <meta name="description" content="${escapeHtml(description)}" />
+    <title>${escapeHtml(fullTitle)}</title>
+    ${noindex}
+    ${description ? `<meta name="description" content="${escapeHtml(description)}" />` : ''}
 
-    <!-- Open Graph (WhatsApp, Facebook) -->
+    <!-- Canonical + OG : SITE_ORIGIN centralisé (même stratégie que React) -->
+    <link rel="canonical" href="${escapeHtml(url)}" />
     <meta property="og:type" content="product" />
     <meta property="og:url" content="${escapeHtml(url)}" />
-    <meta property="og:title" content="${escapeHtml(title)}" />
-    <meta property="og:description" content="${escapeHtml(description)}" />
+    <meta property="og:title" content="${escapeHtml(fullTitle)}" />
+    <meta property="og:site_name" content="${escapeHtml(SITE_NAME)}" />
+    ${description ? `<meta property="og:description" content="${escapeHtml(description)}" />` : ''}
     ${image ? `<meta property="og:image" content="${escapeHtml(image)}" />` : ''}
-    <meta property="product:price:amount" content="${product.price}" />
-    <meta property="product:price:currency" content="MAD" />
 
-    <!-- Twitter Card -->
+    <!-- Twitter Card (aucun compte social vérifié → pas de twitter:site inventé) -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="${escapeHtml(title)}" />
-    <meta name="twitter:description" content="${escapeHtml(description)}" />
+    <meta name="twitter:title" content="${escapeHtml(fullTitle)}" />
+    ${description ? `<meta name="twitter:description" content="${escapeHtml(description)}" />` : ''}
     ${image ? `<meta name="twitter:image" content="${escapeHtml(image)}" />` : ''}
+
+    ${jsonLdBlocks
+      .map((block) => `<script type="application/ld+json">${JSON.stringify(block)}</script>`)
+      .join('\n    ')}
 
     <!-- Redirection vers l'app React pour les navigateurs (les bots ignorent ce tag) -->
     <meta http-equiv="refresh" content="0; url=${escapeHtml(url)}" />
-    <link rel="canonical" href="${escapeHtml(url)}" />
   </head>
   <body style="margin:0;font-family:system-ui,sans-serif;background:#fef8fa;color:#5b2333;display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center;">
     <div>
       <h1 style="font-size:1.25rem;margin-bottom:0.5rem;">${escapeHtml(product.name)}</h1>
-      <p style="color:#9d6b7a;">${escapeHtml(priceLabel)} DH</p>
+      ${product.price != null ? `<p style="color:#9d6b7a;">${escapeHtml(Number(product.price).toLocaleString('fr-FR'))} DH</p>` : ''}
       <a href="${escapeHtml(url)}" style="display:inline-block;margin-top:1rem;background:#f0a0b8;color:#fff;padding:0.75rem 1.5rem;border-radius:9999px;text-decoration:none;font-weight:bold;">Voir le produit</a>
     </div>
   </body>
@@ -114,19 +227,25 @@ function buildProductHtml(product) {
 `;
 }
 
-/** Génère sitemap.xml depuis les données publiques réelles. */
-function buildSitemap({ categories, products }) {
-  const now = new Date().toISOString();
+/**
+ * Sitemap.xml — URLs publiques indexables UNIQUEMENT :
+ *   * accueil, catalogue, contact
+ *   * catégories (aucun champ is_active en base → toutes les catégories)
+ *   * produits actifs
+ * JAMais : admin, auth, checkout, account, 404, recherche/tri/promo/pagination.
+ * lastmod : updated_at réel du produit (ou date de génération pour les fixes).
+ */
+function buildSitemap({ categories, products, generatedAt }) {
   const urls = [
-    { loc: `${ORIGIN}/`, lastmod: now, priority: '1.0' },
-    { loc: `${ORIGIN}/produits`, lastmod: now, priority: '0.9' },
-    { loc: `${ORIGIN}/contact`, lastmod: now, priority: '0.5' },
+    { loc: `${ORIGIN}/`, lastmod: generatedAt, priority: '1.0' },
+    { loc: `${ORIGIN}/produits`, lastmod: generatedAt, priority: '0.9' },
+    { loc: `${ORIGIN}/contact`, lastmod: generatedAt, priority: '0.5' },
   ];
 
   for (const category of categories || []) {
     urls.push({
       loc: `${ORIGIN}/produits?categorie=${encodeURIComponent(category.slug)}`,
-      lastmod: now,
+      lastmod: category.updated_at || generatedAt,
       priority: '0.8',
     });
   }
@@ -134,7 +253,7 @@ function buildSitemap({ categories, products }) {
   for (const product of products || []) {
     urls.push({
       loc: `${ORIGIN}/produit/${encodeURIComponent(product.slug)}`,
-      lastmod: now,
+      lastmod: product.updated_at || generatedAt,
       priority: '0.7',
     });
   }
@@ -149,11 +268,39 @@ function buildSitemap({ categories, products }) {
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${entries}\n</urlset>\n`;
 }
 
+/**
+ * robots.txt généré avec SITE_ORIGIN — le fichier public/robots.txt reste le
+ * template de développement (placeholder), la production utilise celui-ci.
+ * Bloque uniquement les zones privées ; CSS/JS/images/produits/catégories
+ * publics restent crawlables.
+ */
+function buildRobotsTxt() {
+  return [
+    `# Kissariya Cosmétiques — robots.txt (généré par npm run prerender)`,
+    `# Origin configurée via SITE_ORIGIN : ${ORIGIN}`,
+    '',
+    'User-agent: *',
+    'Allow: /',
+    'Disallow: /admin',
+    'Disallow: /admin/',
+    'Disallow: /auth',
+    'Disallow: /auth/',
+    'Disallow: /acces-refuse',
+    'Disallow: /checkout',
+    'Disallow: /account',
+    '',
+    `Sitemap: ${ORIGIN}/sitemap.xml`,
+    '',
+  ].join('\n');
+}
+
 async function main() {
-  console.log('🔎 Récupération des produits et catégories actifs…');
+  console.log('🔎 Récupération des produits et catégories publics…');
   const [productsRes, categoriesRes] = await Promise.all([
     supabase.from('products').select(PRODUCT_SELECT).eq('is_active', true),
-    supabase.from('categories').select('id, slug').order('sort_order', { ascending: true }),
+    // PAS de filtre is_active : le schéma (supabase/database.sql) n'a aucun
+    // champ actif/inactif sur categories. On n'invente pas de colonne.
+    supabase.from('categories').select('id, slug, updated_at').order('sort_order', { ascending: true }),
   ]);
 
   if (productsRes.error) {
@@ -167,11 +314,12 @@ async function main() {
 
   const products = productsRes.data || [];
   const categories = categoriesRes.data || [];
+  const generatedAt = new Date().toISOString();
 
   const outputRoot = path.resolve('dist');
   let count = 0;
 
-  // Fiches produit prérendues
+  // 1. Fiches produit prérendues
   for (const product of products) {
     const dir = path.join(outputRoot, 'prerendered', 'produit', product.slug);
     await mkdir(dir, { recursive: true });
@@ -179,12 +327,20 @@ async function main() {
     count += 1;
   }
 
-  // Sitemap.xml (racine dist → servi par Nginx à /sitemap.xml)
-  await writeFile(path.join(outputRoot, 'sitemap.xml'), buildSitemap({ categories, products }), 'utf8');
+  // 2. Sitemap.xml (racine dist → servi par Nginx à /sitemap.xml)
+  await writeFile(
+    path.join(outputRoot, 'sitemap.xml'),
+    buildSitemap({ categories, products, generatedAt }),
+    'utf8'
+  );
+
+  // 3. robots.txt production (SITE_ORIGIN centralisée — aucun domaine en dur)
+  await writeFile(path.join(outputRoot, 'robots.txt'), buildRobotsTxt(), 'utf8');
 
   console.log(`✅ ${count} fiche(s) produit prérendue(s) dans dist/prerendered/produit/…`);
   console.log(`✅ sitemap.xml généré (${categories.length} catégories, ${products.length} produits).`);
-  console.log('Déployez le dossier dist/ avec les rewrites (vercel.json / netlify.toml) pour servir le HTML statique aux robots.');
+  console.log(`✅ robots.txt généré (Sitemap: ${ORIGIN}/sitemap.xml).`);
+  console.log('Docker + Nginx servent ces fichiers statiques aux robots (voir nginx/default.conf).');
 }
 
 main().catch((err) => {

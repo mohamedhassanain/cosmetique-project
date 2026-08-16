@@ -19,6 +19,32 @@ import { ShoppingCart, MessageCircle, Share2, ChevronLeft, ChevronRight, Sparkle
 
 type MediaItem = { type: 'image' | 'video'; url: string };
 
+/**
+ * Vue « produit introuvable » — VRAI 404 noindex.
+ * Aucun JSON-LD Product/BreadcrumbList, aucune meta produit : un slug
+ * inconnu (ou produit inactif) ne doit jamais devenir une page produit
+ * indexable (pas de soft-404). Le nettoyage de useSeo retire les éventuels
+ * blocs JSON-LD injectés par une fiche précédente.
+ */
+function ProductNotFound({ slug }: { slug: string | undefined }) {
+  useSeo({
+    title: 'Produit introuvable',
+    description: 'Le produit demandé est introuvable.',
+    path: slug ? `/produit/${slug}` : undefined,
+    index: false,
+  });
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-[#fef8fa]">
+      <div className="text-center">
+        <Package className="h-16 w-16 mx-auto text-pink-300 mb-4" />
+        <h1 className="text-2xl font-bold text-pink-900 mb-2">Produit introuvable</h1>
+        <Button asChild className="bg-pink-300 hover:bg-pink-400 rounded-full"><Link to="/produits">Voir tous les produits</Link></Button>
+      </div>
+    </div>
+  );
+}
+
 export default function ProduitDetail() {
   const { slug } = useParams<{ slug: string }>();
   const { parseImages, handleWhatsAppOrder, getShareData } = useProductActions();
@@ -140,15 +166,7 @@ export default function ProduitDetail() {
   }
 
   if (!product) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#fef8fa]">
-        <div className="text-center">
-          <Package className="h-16 w-16 mx-auto text-pink-300 mb-4" />
-          <h1 className="text-2xl font-bold text-pink-900 mb-2">Produit introuvable</h1>
-          <Button asChild className="bg-pink-300 hover:bg-pink-400 rounded-full"><Link to="/produits">Voir tous les produits</Link></Button>
-        </div>
-      </div>
-    );
+    return <ProductNotFound slug={slug} />;
   }
 
   const promo = getPromoDisplay(product);

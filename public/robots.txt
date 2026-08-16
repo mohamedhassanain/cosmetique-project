@@ -1,6 +1,8 @@
 # Kissariya Cosmétiques — robots.txt
+# TEMPLATE DE DÉVELOPPEMENT (placeholder) : en production, `npm run prerender`
+# (exécuté automatiquement par le build Docker) génère dist/robots.txt avec
+# SITE_ORIGIN — voir .env.example. Ce fichier n'est pas déployé tel quel.
 # Autorise le crawling des pages publiques ; bloque les zones privées.
-# Remplacer https://kissariya-cosmetiques.com par le domaine final avant mise en ligne.
 
 User-agent: *
 Allow: /

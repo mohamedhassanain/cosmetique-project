@@ -27,7 +27,10 @@ x-web-args: &web-args
     VITE_SUPABASE_PROJECT_ID: ${VITE_SUPABASE_PROJECT_ID:-}
     VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
     VITE_SENTRY_ENVIRONMENT: ${VITE_SENTRY_ENVIRONMENT:-}
-    RUN_PRERENDER: ${RUN_PRERENDER:-false}
+    # Production origin (sitemap/canonical/robots des pages prérendues).
+    # Obligatoire tant que RUN_PRERENDER=true (défaut) — cf. .env.example.
+    SITE_ORIGIN: ${SITE_ORIGIN:?SITE_ORIGIN is required for the production build (docker compose)}
+    RUN_PRERENDER: ${RUN_PRERENDER:-true}
 
 services:
   web1:
